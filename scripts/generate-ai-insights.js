@@ -29,8 +29,20 @@ async function loadBrandMonthData(brandCode, month) {
   try {
     // 실제 데이터 로드 (여기서는 간단히 API 호출)
     const response = await fetch(`http://localhost:3000/api/data/brand/${brandCode}?month=${month}`);
-    const data = await response.json();
-    return data;
+    
+    if (!response.ok) {
+      console.error(`❌ API 응답 실패 [${brandCode} ${month}]: ${response.status} ${response.statusText}`);
+      return null;
+    }
+    
+    const result = await response.json();
+    
+    if (!result.success || !result.data) {
+      console.error(`❌ 데이터 형식 오류 [${brandCode} ${month}]:`, result);
+      return null;
+    }
+    
+    return result.data;
   } catch (error) {
     console.error(`❌ 데이터 로드 실패 [${brandCode} ${month}]:`, error.message);
     return null;
