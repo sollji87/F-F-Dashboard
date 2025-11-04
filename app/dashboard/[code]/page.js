@@ -9,6 +9,7 @@ import { YoYTrendChart } from '@/components/dashboard/charts/YoYTrendChart';
 import { CategoryYoYChart } from '@/components/dashboard/charts/CategoryBarChart';
 import { EfficiencyChart } from '@/components/dashboard/charts/EfficiencyChart';
 import { AiInsightsPanel } from '@/components/dashboard/AiInsightsPanel';
+import { CategoryInsightsPanel } from '@/components/dashboard/CategoryInsightsPanel';
 import { PageLoader } from '@/components/dashboard/Loader';
 import { ErrorState } from '@/components/dashboard/ErrorState';
 import { ArrowLeft, Download, Edit3, Save, X, Calendar } from 'lucide-react';
@@ -21,6 +22,7 @@ export default function BrandDashboardPage() {
   const brandCode = params.code;
   
   const [dashboardData, setDashboardData] = useState(null);
+  const [rawCostsData, setRawCostsData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -36,6 +38,7 @@ export default function BrandDashboardPage() {
   // 필터 상태
   const [selectedMonth, setSelectedMonth] = useState('202510');
   const [kpiViewMode, setKpiViewMode] = useState('monthly'); // 'monthly' or 'ytd'
+  const [selectedCategory, setSelectedCategory] = useState(null); // 선택된 대분류
   
   useEffect(() => {
     if (brandCode) {
@@ -46,6 +49,8 @@ export default function BrandDashboardPage() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      
+      // 대시보드 데이터 로드
       const response = await fetch(`/api/data/brand/${brandCode}?month=${selectedMonth}`);
       const result = await response.json();
       
@@ -54,6 +59,19 @@ export default function BrandDashboardPage() {
       } else {
         setError(result.error);
       }
+      
+      // 원본 비용 데이터 로드 (드릴다운용)
+      try {
+        const costsResponse = await fetch(`/api/data/costs/${brandCode}?month=${selectedMonth}`);
+        const costsResult = await costsResponse.json();
+        if (costsResult.success) {
+          setRawCostsData(costsResult.data);
+          console.log('✅ 원본 비용 데이터 로드 완료:', costsResult.data.length, '건');
+        }
+      } catch (e) {
+        console.warn('⚠️  원본 비용 데이터 로드 실패:', e);
+      }
+      
     } catch (err) {
       setError(err.message);
     } finally {
@@ -93,13 +111,13 @@ export default function BrandDashboardPage() {
         monthlyAgg[row.month] = {
           month: row.month,
           cost: 0,
-          sale: 0,
+          sale: row.sale_amt, // 매출액은 처음 한 번만 할당 (모든 행에 동일한 값)
           headcount: row.headcount,
           store_cnt: row.store_cnt,
         };
       }
       monthlyAgg[row.month].cost += row.cost_amt;
-      monthlyAgg[row.month].sale += row.sale_amt;
+      // sale은 중복 합산하지 않음 (이미 첫 번째 행에서 할당됨)
     });
     
     // 카테고리별 월별 집계 (CATEGORY_L1 기준)
@@ -152,12 +170,20 @@ export default function BrandDashboardPage() {
     // 효율성 데이터
     const efficiencyData = Object.values(monthlyAgg)
       .sort((a, b) => a.month.localeCompare(b.month))
-      .map(d => ({
-        month: d.month,
-        cost_ratio: d.sale > 0 ? (d.cost / d.sale) * 100 : 0,
-        cost_per_person: d.headcount > 0 ? d.cost / d.headcount / 1000000 : 0,
-        cost_per_store: d.store_cnt > 0 ? d.cost / d.store_cnt / 1000000 : 0,
-      }));
+      .map(d => {
+        // 광고비 계산 (광고선전비 카테고리)
+        const adCost = Object.values(categoryMonthlyAgg)
+          .filter(c => c.month === d.month && c.category === '광고선전비')
+          .reduce((sum, c) => sum + c.cost, 0);
+        
+        return {
+          month: d.month,
+          cost_ratio: d.sale > 0 ? (d.cost / d.sale) * 1.1 * 100 : 0, // 비용률 = 비용 / 매출액 * 1.1
+          cost_per_person: d.headcount > 0 ? d.cost / d.headcount / 1000000 : 0,
+          cost_per_store: d.store_cnt > 0 ? d.cost / d.store_cnt / 1000000 : 0,
+          ad_ratio: d.sale > 0 ? (adCost / d.sale) * 1.1 * 100 : 0, // 광고비율 = 광고비 / 매출액 * 1.1
+        };
+      });
     
     // 카테고리별 집계 (당월)
     const currentMonthData = monthly_data.filter(d => d.month === selectedMonth);
@@ -556,20 +582,30 @@ export default function BrandDashboardPage() {
                 amount: cat.current,
                 ratio: ((cat.current / kpi.total_cost) * 100).toFixed(1),
               }))}
-              title="월별 비용 추이 분석"
-              context="월별 비용 추이 및 YOY 증감 패턴을 분석하여 인사이트를 제공해주세요."
             />
           </div>
           
-          {/* 카테고리 & 효율성 차트 */}
+          {/* 카테고리 비용 분석 */}
           <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
             <CategoryYoYChart 
               monthlyData={categoryMonthly}
               ytdData={categoryYtd}
+              rawData={rawCostsData}
+              selectedMonth={selectedMonth}
+              onCategorySelect={setSelectedCategory}
             />
             
-            <EfficiencyChart data={efficiencyData} />
+            <CategoryInsightsPanel 
+              brand={brandInfo.name}
+              brandCode={brandCode}
+              month={selectedMonth}
+              rawCostsData={rawCostsData}
+              selectedCategory={selectedCategory}
+            />
           </div>
+          
+          {/* 효율성 차트 */}
+          <EfficiencyChart data={efficiencyData} />
         </div>
       </div>
     </div>

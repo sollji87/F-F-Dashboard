@@ -11,10 +11,10 @@ import { Sparkles, RefreshCw, AlertTriangle, CheckCircle2, Lightbulb, Edit2, Sav
 import { Loader } from './Loader';
 
 /**
- * AI 인사이트 패널 컴포넌트
- * OpenAI API를 통해 비용 데이터 분석 인사이트 제공
+ * 카테고리별 AI 인사이트 패널 컴포넌트
+ * 대분류 비용에 대한 상세 분석 제공
  */
-export function AiInsightsPanel({ brand, brandCode, month, kpi, trendData, topCategories }) {
+export function CategoryInsightsPanel({ brand, brandCode, month, rawCostsData, selectedCategory }) {
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -22,13 +22,79 @@ export function AiInsightsPanel({ brand, brandCode, month, kpi, trendData, topCa
   const [editedInsights, setEditedInsights] = useState(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
   
+  // 선택된 카테고리가 변경되면 인사이트 초기화
+  useEffect(() => {
+    setInsights(null);
+    setError(null);
+  }, [selectedCategory]);
+  
   const generateInsights = async () => {
+    if (!selectedCategory) {
+      setError('대분류를 먼저 선택해주세요.');
+      return;
+    }
+    
+    if (!rawCostsData || rawCostsData.length === 0) {
+      setError('원본 비용 데이터를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+    
     try {
       setLoading(true);
       setError(null);
       
-      // CSV에서 월별 추이 인사이트 로드
-      const response = await fetch('/api/insights', {
+      // 선택된 카테고리의 당월 데이터만 필터링
+      const categoryData = rawCostsData.filter(row => 
+        row.month === month && row.category_l1 === selectedCategory
+      );
+      
+      console.log(`📊 ${selectedCategory} 분석 데이터:`, {
+        totalRows: categoryData.length,
+        sampleRows: categoryData.slice(0, 3)
+      });
+      
+      // 중분류별 집계
+      const l2Aggregation = {};
+      categoryData.forEach(row => {
+        const l2 = row.category_l2 || '기타';
+        if (!l2Aggregation[l2]) {
+          l2Aggregation[l2] = 0;
+        }
+        l2Aggregation[l2] += (row.cost_amt || 0);
+      });
+      
+      // 소분류별 집계 (TOP 5)
+      const l3Aggregation = {};
+      categoryData.forEach(row => {
+        const l3 = row.category_l3 || '기타';
+        if (!l3Aggregation[l3]) {
+          l3Aggregation[l3] = 0;
+        }
+        l3Aggregation[l3] += (row.cost_amt || 0);
+      });
+      
+      const topL2 = Object.entries(l2Aggregation)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, amt]) => ({
+          name,
+          amount: Math.round(amt / 1000000), // 백만원
+        }));
+      
+      const topL3 = Object.entries(l3Aggregation)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, amt]) => ({
+          name,
+          amount: Math.round(amt / 1000000), // 백만원
+        }));
+      
+      const totalAmount = Math.round(
+        categoryData.reduce((sum, row) => sum + (row.cost_amt || 0), 0) / 1000000
+      );
+      
+      // OpenAI API 호출
+      const response = await fetch('/api/insights/category', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -37,6 +103,10 @@ export function AiInsightsPanel({ brand, brandCode, month, kpi, trendData, topCa
           brand,
           brandCode,
           month,
+          category: selectedCategory,
+          totalAmount,
+          topL2,
+          topL3,
         }),
       });
       
@@ -104,13 +174,15 @@ export function AiInsightsPanel({ brand, brandCode, month, kpi, trendData, topCa
     }));
   };
   
+  const title = selectedCategory ? `${selectedCategory} 비용 분석` : '대분류 비용 분석';
+  
   return (
-    <Card className="border-2 border-blue-200 dark:border-blue-900">
+    <Card className="border-2 border-purple-200 dark:border-purple-900">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            <CardTitle>월별 비용 추이 분석</CardTitle>
+            <Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            <CardTitle>{title}</CardTitle>
             <Button
               onClick={() => setIsCollapsed(!isCollapsed)}
               variant="ghost"
@@ -153,7 +225,7 @@ export function AiInsightsPanel({ brand, brandCode, month, kpi, trendData, topCa
             )}
             <Button 
               onClick={generateInsights}
-              disabled={loading}
+              disabled={loading || !selectedCategory}
               size="sm"
               variant="outline"
             >
@@ -173,7 +245,10 @@ export function AiInsightsPanel({ brand, brandCode, month, kpi, trendData, topCa
         </div>
         {!isCollapsed && (
           <CardDescription>
-            월별 비용 추이 및 YOY 증감 패턴을 분석합니다
+            {selectedCategory 
+              ? `${selectedCategory} 대분류의 상세 비용 구성을 분석합니다` 
+              : '왼쪽 차트에서 대분류를 선택하세요'
+            }
           </CardDescription>
         )}
       </CardHeader>
@@ -195,7 +270,10 @@ export function AiInsightsPanel({ brand, brandCode, month, kpi, trendData, topCa
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Sparkles className="h-12 w-12 text-zinc-300 dark:text-zinc-700 mb-4" />
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              버튼을 클릭하여 AI 인사이트를 생성하세요
+              {selectedCategory 
+                ? '버튼을 클릭하여 AI 인사이트를 생성하세요'
+                : '👈 왼쪽 차트에서 대분류를 선택하면 해당 카테고리의 AI 분석을 볼 수 있습니다'
+              }
             </p>
           </div>
         )}
