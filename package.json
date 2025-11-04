@@ -2,11 +2,13 @@
   "name": "251104",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "generate-insights": "node scripts/generate-ai-insights.js"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

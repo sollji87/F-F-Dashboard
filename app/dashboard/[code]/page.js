@@ -547,6 +547,7 @@ export default function BrandDashboardPage() {
             <YoYTrendChart data={trendData} />
             <AiInsightsPanel 
               brand={brandInfo.name}
+              brandCode={code}
               month={selectedMonth}
               kpi={kpi}
               trendData={trendData}

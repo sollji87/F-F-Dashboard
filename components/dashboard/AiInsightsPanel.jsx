@@ -14,7 +14,7 @@ import { Loader } from './Loader';
  * AI 인사이트 패널 컴포넌트
  * OpenAI API를 통해 비용 데이터 분석 인사이트 제공
  */
-export function AiInsightsPanel({ brand, month, kpi, trendData, topCategories, title = 'AI 인사이트', context }) {
+export function AiInsightsPanel({ brand, brandCode, month, kpi, trendData, topCategories, title = 'AI 인사이트', context }) {
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -34,11 +34,8 @@ export function AiInsightsPanel({ brand, month, kpi, trendData, topCategories, t
         },
         body: JSON.stringify({
           brand,
+          brandCode,
           month,
-          kpi,
-          trendData: trendData?.slice(-6), // 최근 6개월 데이터만 전송
-          topCategories,
-          context: context || '월별 비용 추이 및 YOY 증감, 카테고리별 비용 구성을 분석하여 인사이트를 제공해주세요.',
         }),
       });
       
