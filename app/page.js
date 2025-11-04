@@ -5,21 +5,37 @@ import { Badge } from "@/components/ui/badge";
 import { BrandSelector } from "@/components/dashboard/BrandSelector";
 import { PageLoader } from "@/components/dashboard/Loader";
 import { ErrorState } from "@/components/dashboard/ErrorState";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Calendar } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function Home() {
   const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState('202510'); // 기본값: 2025년 10월
+  
+  // 월 옵션 생성 (2025년 1월 ~ 10월)
+  const monthOptions = [];
+  for (let month = 1; month <= 10; month++) {
+    const monthStr = `2025${String(month).padStart(2, '0')}`;
+    const label = `2025년 ${month}월`;
+    monthOptions.push({ value: monthStr, label });
+  }
   
   useEffect(() => {
-    fetchBrands();
-  }, []);
+    fetchBrands(selectedMonth);
+  }, [selectedMonth]);
   
-  const fetchBrands = async () => {
+  const fetchBrands = async (month) => {
     try {
       setLoading(true);
-      const response = await fetch('/api/data/brands?month=202412');
+      const response = await fetch(`/api/data/brands?month=${month}`);
       const result = await response.json();
       
       if (result.success) {
@@ -61,7 +77,7 @@ export default function Home() {
             <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 dark:text-blue-400" />
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-zinc-900 to-zinc-600 dark:from-zinc-100 dark:to-zinc-400 bg-clip-text text-transparent">
               F&F 비용 분석 대시보드
-            </h1>
+          </h1>
           </div>
         </div>
 
@@ -74,9 +90,30 @@ export default function Home() {
                 분석할 브랜드를 클릭하여 상세 대시보드로 이동합니다
               </p>
             </div>
-            <Badge variant="outline" className="px-3 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm w-fit">
-              {brands.length}개 브랜드
-            </Badge>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="relative">
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="w-[140px] sm:w-[160px] border-2 border-blue-200 dark:border-blue-800 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 hover:border-blue-300 dark:hover:border-blue-700 transition-colors font-semibold">
+                    <Calendar className="h-4 w-4 mr-2 text-blue-600 dark:text-blue-400" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {monthOptions.map(option => (
+                      <SelectItem 
+                        key={option.value} 
+                        value={option.value}
+                        className="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-950"
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Badge variant="outline" className="px-3 sm:px-4 py-1 sm:py-2 text-xs sm:text-sm w-fit font-semibold border-2">
+                {brands.length}개 브랜드
+              </Badge>
+            </div>
           </div>
           
           <BrandSelector brands={brands} />

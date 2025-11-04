@@ -47,3 +47,10 @@ __pycache__/
 *$py.class
 *.so
 .Python
+
+# snowflake logs
+*.log
+
+# local data files (optional - uncomment if you don't want to commit data)
+# public/data/snowflake_*.csv
+# public/data/headcount/
