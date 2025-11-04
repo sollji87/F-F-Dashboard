@@ -87,6 +87,33 @@ export async function POST(request) {
       ORDER BY YYYYMM, BRD_CD, CCTR_CD
     `;
     
+    // 쿼리 3: 매장수 데이터
+    const storeQuery = `
+      SELECT
+        PST_YYYYMM,
+        BRD_CD,
+        BRD_NM,
+        CHNL_CD,
+        CHNL_NM,
+        COUNT(SHOP_CD) AS STORE_COUNT
+      FROM SAP_FNF.DM_PL_SHOP_M
+      WHERE PST_YYYYMM BETWEEN '202401' AND '202512'
+        AND ACT_SALE_AMT <> 0
+        AND BRD_CD NOT IN ('A','W')
+        AND CHNL_CD NOT IN ('4','5','8','9','99')
+        AND (
+              SHOP_NM IS NULL
+              OR (
+                   SHOP_NM NOT ILIKE '%(상-위)%'
+               AND RTRIM(SHOP_NM) NOT ILIKE '%M'
+              )
+            )
+      GROUP BY
+        PST_YYYYMM, BRD_CD, BRD_NM, CHNL_CD, CHNL_NM
+      ORDER BY
+        PST_YYYYMM, BRD_CD, BRD_NM, CHNL_CD, CHNL_NM
+    `;
+    
     // 매출 데이터 조회
     const salesResult = await new Promise((resolve, reject) => {
       connection.execute({
@@ -102,6 +129,17 @@ export async function POST(request) {
     const costResult = await new Promise((resolve, reject) => {
       connection.execute({
         sqlText: costQuery,
+        complete: (err, stmt, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        },
+      });
+    });
+    
+    // 매장수 데이터 조회
+    const storeResult = await new Promise((resolve, reject) => {
+      connection.execute({
+        sqlText: storeQuery,
         complete: (err, stmt, rows) => {
           if (err) reject(err);
           else resolve(rows);
@@ -135,16 +173,28 @@ export async function POST(request) {
     const costFilePath = path.join(publicDataPath, 'snowflake_costs.csv');
     fs.writeFileSync(costFilePath, costCsvContent, 'utf8');
     
+    // 3. 매장수 데이터 CSV 저장
+    const storeCsvHeader = 'PST_YYYYMM,BRD_CD,BRD_NM,CHNL_CD,CHNL_NM,STORE_COUNT\n';
+    const storeCsvRows = storeResult.map(row => 
+      `${row.PST_YYYYMM || ''},${row.BRD_CD || ''},${row.BRD_NM || ''},${row.CHNL_CD || ''},${row.CHNL_NM || ''},${row.STORE_COUNT || 0}`
+    ).join('\n');
+    const storeCsvContent = '\uFEFF' + storeCsvHeader + storeCsvRows; // UTF-8 BOM 추가
+    
+    const storeFilePath = path.join(publicDataPath, 'snowflake_stores.csv');
+    fs.writeFileSync(storeFilePath, storeCsvContent, 'utf8');
+    
     return NextResponse.json({
       success: true,
       message: 'Snowflake 데이터가 CSV 파일로 저장되었습니다.',
       files: {
         sales: 'public/data/snowflake_sales.csv',
         costs: 'public/data/snowflake_costs.csv',
+        stores: 'public/data/snowflake_stores.csv',
       },
       record_count: {
         sales: salesResult.length,
         costs: costResult.length,
+        stores: storeResult.length,
       },
     });
     

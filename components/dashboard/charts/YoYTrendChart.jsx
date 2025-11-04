@@ -1,7 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart, ReferenceLine } from 'recharts';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 // CATEGORY_L1별 색상 정의 (파스텔톤)
 const CATEGORY_COLORS = {
@@ -21,6 +24,8 @@ const CATEGORY_COLORS = {
  * 월별 YOY 트렌드 차트 (Stacked Bar + YOY Line)
  */
 export function YoYTrendChart({ data, title = '월별 비용 추이 및 YOY 비교' }) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  
   if (!data || data.length === 0) {
     return (
       <Card>
@@ -124,11 +129,23 @@ export function YoYTrendChart({ data, title = '월별 비용 추이 및 YOY 비�
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg font-bold">{title}</CardTitle>
-        <CardDescription className="text-xs">카테고리별 비용 구성 및 전년 대비 증감률</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-lg font-bold">{title}</CardTitle>
+            <CardDescription className="text-xs">카테고리별 비용 구성 및 전년 대비 증감률</CardDescription>
+          </div>
+          <Button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            variant="ghost"
+            size="sm"
+          >
+            {isCollapsed ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={400}>
+      {!isCollapsed && (
+        <CardContent>
+          <ResponsiveContainer width="100%" height={400}>
           <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
             <XAxis 
@@ -196,6 +213,7 @@ export function YoYTrendChart({ data, title = '월별 비용 추이 및 YOY 비�
           </ComposedChart>
         </ResponsiveContainer>
       </CardContent>
+      )}
     </Card>
   );
 }

@@ -231,30 +231,75 @@ export default function BrandDashboardPage() {
       return dataYear === year && dataMonth <= currentMonthNum;
     });
     
-    const ytdTotalCost = ytdData.reduce((sum, d) => sum + (d.cost_amt || 0), 0);
-    const ytdTotalSale = ytdData.reduce((sum, d) => sum + (d.sale_amt || 0), 0);
-    const ytdSalaryCost = ytdData.reduce((sum, d) => sum + (d.salary_amt || 0), 0);
-    console.log('💰 YTD 인건비:', { ytdData: ytdData.map(d => ({ month: d.month, salary: d.salary_amt })), ytdSalaryCost });
-    const avgHeadcount = ytdData.length > 0 ? ytdData.reduce((sum, d) => sum + (d.headcount || 0), 0) / ytdData.length : 0;
-    const avgStoreCount = ytdData.length > 0 ? ytdData.reduce((sum, d) => sum + (d.store_cnt || 0), 0) / ytdData.length : 0;
+    // 월별로 그룹화 (카테고리별 중복 제거)
+    const monthlyGrouped = {};
+    ytdData.forEach(d => {
+      if (!monthlyGrouped[d.month]) {
+        monthlyGrouped[d.month] = {
+          month: d.month,
+          cost_amt: 0,
+          sale_amt: d.sale_amt || 0, // sale은 카테고리와 무관하므로 첫 번째 것만
+          salary_amt: d.salary_amt || 0, // salary도 첫 번째 것만 (모든 행에 동일한 값)
+          headcount: d.headcount || 0,
+          store_cnt: d.store_cnt || 0,
+        };
+      }
+      monthlyGrouped[d.month].cost_amt += (d.cost_amt || 0);
+    });
+    
+    const ytdMonthly = Object.values(monthlyGrouped);
+    const ytdTotalCost = ytdMonthly.reduce((sum, d) => sum + d.cost_amt, 0);
+    const ytdTotalSale = ytdMonthly.reduce((sum, d) => sum + d.sale_amt, 0);
+    const avgHeadcount = ytdMonthly.length > 0 ? ytdMonthly.reduce((sum, d) => sum + d.headcount, 0) / ytdMonthly.length : 0;
+    const avgStoreCount = ytdMonthly.length > 0 ? ytdMonthly.reduce((sum, d) => sum + d.store_cnt, 0) / ytdMonthly.length : 0;
+    
+    // 급료와 임금 총액 (각 행에 이미 계산되어 있음, 첫 번째 행만 사용)
+    console.log('🔍 ytdData 샘플:', ytdData.slice(0, 5).map(d => ({ 
+      month: d.month, 
+      category: d.category_l1, 
+      salary_amt: d.salary_amt,
+      cost_amt: d.cost_amt 
+    })));
+    console.log('🔍 ytdMonthly 샘플:', ytdMonthly.slice(0, 3).map(d => ({ 
+      month: d.month, 
+      salary_amt: d.salary_amt,
+      headcount: d.headcount
+    })));
+    
+    const ytdSalaryCost = ytdMonthly.reduce((sum, d) => sum + (d.salary_amt || 0), 0);
+    console.log('💰 YTD 급료와 임금:', { ytdSalaryCost, avgHeadcount });
     
     // 전년 1월~선택월 누적 (비교용)
-    console.log('🔍 전체 monthly_data:', dashboardData.monthly_data.map(d => d.month));
-    
     const prevYtdData = dashboardData.monthly_data.filter(d => {
       const dataYear = d.month.substring(0, 4);
       const dataMonth = parseInt(d.month.substring(4, 6));
-      console.log(`🔍 필터링 체크: ${d.month} => year:${dataYear}, prevYear:${prevYear}, match:${dataYear === prevYear && dataMonth <= currentMonthNum}`);
       return dataYear === prevYear && dataMonth <= currentMonthNum;
     });
     
-    console.log('🔍 prevYtdData:', prevYtdData);
+    // 전년도 월별로 그룹화 (카테고리별 중복 제거)
+    const prevMonthlyGrouped = {};
+    prevYtdData.forEach(d => {
+      if (!prevMonthlyGrouped[d.month]) {
+        prevMonthlyGrouped[d.month] = {
+          month: d.month,
+          cost_amt: 0,
+          sale_amt: d.sale_amt || 0,
+          salary_amt: d.salary_amt || 0, // salary도 첫 번째 것만 (모든 행에 동일한 값)
+          headcount: d.headcount || 0,
+          store_cnt: d.store_cnt || 0,
+        };
+      }
+      prevMonthlyGrouped[d.month].cost_amt += (d.cost_amt || 0);
+    });
     
-    const prevYtdTotalCost = prevYtdData.reduce((sum, d) => sum + (d.cost_amt || 0), 0);
-    const prevYtdTotalSale = prevYtdData.reduce((sum, d) => sum + (d.sale_amt || 0), 0);
-    const prevYtdSalaryCost = prevYtdData.reduce((sum, d) => sum + (d.salary_amt || 0), 0);
-    const prevAvgHeadcount = prevYtdData.length > 0 ? prevYtdData.reduce((sum, d) => sum + (d.headcount || 0), 0) / prevYtdData.length : 0;
-    const prevAvgStoreCount = prevYtdData.length > 0 ? prevYtdData.reduce((sum, d) => sum + (d.store_cnt || 0), 0) / prevYtdData.length : 0;
+    const prevYtdMonthly = Object.values(prevMonthlyGrouped);
+    const prevYtdTotalCost = prevYtdMonthly.reduce((sum, d) => sum + d.cost_amt, 0);
+    const prevYtdTotalSale = prevYtdMonthly.reduce((sum, d) => sum + d.sale_amt, 0);
+    const prevAvgHeadcount = prevYtdMonthly.length > 0 ? prevYtdMonthly.reduce((sum, d) => sum + d.headcount, 0) / prevYtdMonthly.length : 0;
+    const prevAvgStoreCount = prevYtdMonthly.length > 0 ? prevYtdMonthly.reduce((sum, d) => sum + d.store_cnt, 0) / prevYtdMonthly.length : 0;
+    
+    // 전년 급료와 임금 총액 (각 행에 이미 계산되어 있음)
+    const prevYtdSalaryCost = prevYtdMonthly.reduce((sum, d) => sum + (d.salary_amt || 0), 0);
     
     console.log('📊 YTD 계산:', {
       year,
@@ -275,6 +320,15 @@ export default function BrandDashboardPage() {
     const costPerPerson = avgHeadcount > 0 ? ytdTotalCost / avgHeadcount / 1000000 : 0;
     const prevCostPerPerson = prevAvgHeadcount > 0 ? prevYtdTotalCost / prevAvgHeadcount / 1000000 : 0;
     const salaryPerPerson = avgHeadcount > 0 ? ytdSalaryCost / avgHeadcount / 1000000 : 0;
+    
+    console.log('💰 인당 인건비 계산:', {
+      ytdSalaryCost,
+      prevYtdSalaryCost,
+      avgHeadcount,
+      prevAvgHeadcount,
+      salaryPerPerson: salaryPerPerson.toFixed(1),
+      prevSalaryPerPerson: prevAvgHeadcount > 0 ? (prevYtdSalaryCost / prevAvgHeadcount / 1000000).toFixed(1) : 0
+    });
     const costPerStore = avgStoreCount > 0 ? ytdTotalCost / avgStoreCount / 1000000 : 0;
     const prevCostPerStore = prevAvgStoreCount > 0 ? prevYtdTotalCost / prevAvgStoreCount / 1000000 : 0;
     const yoyCost = prevYtdTotalCost > 0 ? (ytdTotalCost / prevYtdTotalCost) * 100 : 0;
@@ -487,30 +541,33 @@ export default function BrandDashboardPage() {
         </div>
         
         {/* 차트 섹션 */}
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-          <div className="lg:col-span-2">
+        <div className="space-y-4 sm:space-y-6">
+          {/* 월별 비용 추이 */}
+          <div className="space-y-4">
             <YoYTrendChart data={trendData} />
-          </div>
-          
-          <CategoryYoYChart 
-            monthlyData={categoryMonthly}
-            ytdData={categoryYtd}
-          />
-          
-          <EfficiencyChart data={efficiencyData} />
-          
-          {/* AI 인사이트 패널 */}
-          <div className="lg:col-span-2">
             <AiInsightsPanel 
               brand={brandInfo.name}
               month={selectedMonth}
               kpi={kpi}
+              trendData={trendData}
               topCategories={categoryMonthly.slice(0, 5).map(cat => ({
                 name: cat.category,
                 amount: cat.current,
                 ratio: ((cat.current / kpi.total_cost) * 100).toFixed(1),
               }))}
+              title="월별 비용 추이 분석"
+              context="월별 비용 추이 및 YOY 증감 패턴을 분석하여 인사이트를 제공해주세요."
             />
+          </div>
+          
+          {/* 카테고리 & 효율성 차트 */}
+          <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+            <CategoryYoYChart 
+              monthlyData={categoryMonthly}
+              ytdData={categoryYtd}
+            />
+            
+            <EfficiencyChart data={efficiencyData} />
           </div>
         </div>
       </div>

@@ -6,7 +6,7 @@ import { NextResponse } from 'next/server';
  */
 export async function POST(request) {
   try {
-    const { brand, month, kpi, topCategories, context } = await request.json();
+    const { brand, month, kpi, trendData, topCategories, context } = await request.json();
     
     // OpenAI API 키 확인
     const apiKey = process.env.OPENAI_API_KEY;
@@ -27,6 +27,11 @@ export async function POST(request) {
     const { OpenAI } = await import('openai');
     const client = new OpenAI({ apiKey });
     
+    // 월별 추이 데이터 포맷팅
+    const trendSummary = trendData?.map(d => 
+      `${d.month.substring(4,6)}월: ${d.total_cost.toLocaleString()}백만원 (YOY ${d.yoy.toFixed(1)}%)`
+    ).join('\n') || '데이터 없음';
+
     // 프롬프트 생성
     const prompt = `당신은 비용 분석 전문가입니다. 다음 데이터를 분석하여 인사이트를 제공해주세요.
 
@@ -40,10 +45,13 @@ KPI 지표:
 - 매장당 비용: ${kpi.cost_per_store}백만원
 - 전년 대비 증감률(YOY): ${kpi.yoy}%
 
+월별 비용 추이 (최근 6개월):
+${trendSummary}
+
 주요 비용 카테고리:
 ${topCategories?.map(cat => `- ${cat.name}: ${cat.amount?.toLocaleString()}백만원 (${cat.ratio}%)`).join('\n')}
 
-${context ? `추가 컨텍스트: ${context}` : ''}
+${context ? `분석 관점: ${context}` : ''}
 
 다음 형식으로 JSON 응답을 생성해주세요:
 {
