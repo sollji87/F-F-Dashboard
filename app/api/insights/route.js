@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { OpenAI } from 'openai';
 
 /**
  * POST /api/insights
@@ -14,10 +13,18 @@ export async function POST(request) {
     if (!apiKey) {
       return NextResponse.json({
         success: false,
-        error: 'OpenAI API 키가 설정되지 않았습니다. .env.local 파일에 OPENAI_API_KEY를 추가해주세요.',
+        error: 'OpenAI API 키가 설정되지 않았습니다.',
+        fallback_insights: {
+          summary: 'AI 인사이트를 사용하려면 OpenAI API 키를 설정해주세요.',
+          key_findings: ['Vercel 대시보드 → Settings → Environment Variables에서 OPENAI_API_KEY를 추가하세요.'],
+          risks: ['API 키 미설정'],
+          action_items: ['OpenAI API 키 설정 필요'],
+        },
       });
     }
     
+    // OpenAI 동적 import
+    const { OpenAI } = await import('openai');
     const client = new OpenAI({ apiKey });
     
     // 프롬프트 생성
