@@ -21,12 +21,7 @@ export function CategoryInsightsPanel({ brand, brandCode, month, rawCostsData, s
   const [isEditing, setIsEditing] = useState(false);
   const [editedInsights, setEditedInsights] = useState(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
-  
-  // 선택된 카테고리가 변경되면 인사이트 초기화
-  useEffect(() => {
-    setInsights(null);
-    setError(null);
-  }, [selectedCategory]);
+  const [lastLoadedCategory, setLastLoadedCategory] = useState(null);
   
   const generateInsights = async () => {
     if (!selectedCategory) {
@@ -115,11 +110,13 @@ export function CategoryInsightsPanel({ brand, brandCode, month, rawCostsData, s
       if (result.success) {
         setInsights(result.insights);
         setEditedInsights(result.insights);
+        setLastLoadedCategory(`${selectedCategory}_${month}`);
       } else {
         // API 키가 없는 경우 fallback 인사이트 사용
         if (result.fallback_insights) {
           setInsights(result.fallback_insights);
           setEditedInsights(result.fallback_insights);
+          setLastLoadedCategory(`${selectedCategory}_${month}`);
         } else {
           setError(result.error);
         }
@@ -130,6 +127,26 @@ export function CategoryInsightsPanel({ brand, brandCode, month, rawCostsData, s
       setLoading(false);
     }
   };
+  
+  // 자동으로 인사이트 생성 (대분류 선택 또는 변경 시)
+  useEffect(() => {
+    if (selectedCategory && rawCostsData && rawCostsData.length > 0) {
+      const currentKey = `${selectedCategory}_${month}`;
+      // 이미 로드된 인사이트가 있고 동일한 키인 경우 중복 호출 방지
+      if (lastLoadedCategory !== currentKey && !loading) {
+        // 인사이트 초기화 후 자동 생성
+        setInsights(null);
+        setError(null);
+        generateInsights();
+      }
+    } else if (!selectedCategory) {
+      // 카테고리가 선택 해제되면 인사이트 초기화
+      setInsights(null);
+      setError(null);
+      setLastLoadedCategory(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategory, month, rawCostsData]);
   
   const handleEdit = () => {
     setIsEditing(true);

@@ -21,8 +21,11 @@ export function AiInsightsPanel({ brand, brandCode, month, kpi, trendData, topCa
   const [isEditing, setIsEditing] = useState(false);
   const [editedInsights, setEditedInsights] = useState(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [lastLoadedKey, setLastLoadedKey] = useState(null);
   
   const generateInsights = async () => {
+    if (!brand || !brandCode || !month) return;
+    
     try {
       setLoading(true);
       setError(null);
@@ -45,11 +48,13 @@ export function AiInsightsPanel({ brand, brandCode, month, kpi, trendData, topCa
       if (result.success) {
         setInsights(result.insights);
         setEditedInsights(result.insights);
+        setLastLoadedKey(`${brandCode}_${month}`);
       } else {
         // API 키가 없는 경우 fallback 인사이트 사용
         if (result.fallback_insights) {
           setInsights(result.fallback_insights);
           setEditedInsights(result.fallback_insights);
+          setLastLoadedKey(`${brandCode}_${month}`);
         } else {
           setError(result.error);
         }
@@ -60,6 +65,18 @@ export function AiInsightsPanel({ brand, brandCode, month, kpi, trendData, topCa
       setLoading(false);
     }
   };
+  
+  // 자동으로 인사이트 생성 (컴포넌트 마운트 또는 brand/brandCode/month 변경 시)
+  useEffect(() => {
+    if (brand && brandCode && month) {
+      const currentKey = `${brandCode}_${month}`;
+      // 이미 로드된 인사이트가 있고 동일한 키인 경우 중복 호출 방지
+      if (lastLoadedKey !== currentKey && !loading) {
+        generateInsights();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brand, brandCode, month]);
   
   const handleEdit = () => {
     setIsEditing(true);

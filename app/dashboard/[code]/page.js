@@ -570,7 +570,7 @@ export default function BrandDashboardPage() {
         <div className="space-y-4 sm:space-y-6">
           {/* 월별 비용 추이 */}
           <div className="space-y-4">
-            <YoYTrendChart data={trendData} />
+            <YoYTrendChart data={trendData} rawCostsData={rawCostsData} />
             <AiInsightsPanel 
               brand={brandInfo.name}
               brandCode={brandCode}
