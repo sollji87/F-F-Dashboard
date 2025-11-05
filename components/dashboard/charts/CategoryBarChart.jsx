@@ -345,6 +345,37 @@ export function CategoryYoYChart({ monthlyData, ytdData, rawData, selectedMonth,
     );
   };
 
+  // 커스텀 Y축 Tick (클릭 가능)
+  const CustomYAxisTick = ({ x, y, payload }) => {
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text
+          x={0}
+          y={0}
+          dy={4}
+          textAnchor="end"
+          fill="#374151"
+          fontSize={11}
+          style={{ cursor: 'pointer' }}
+          onClick={() => {
+            console.log('📝 Y축 라벨 클릭:', payload.value);
+            handleBarClick({ category: payload.value });
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.fill = '#2563eb';
+            e.target.style.fontWeight = 'bold';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.fill = '#374151';
+            e.target.style.fontWeight = 'normal';
+          }}
+        >
+          {payload.value}
+        </text>
+      </g>
+    );
+  };
+
   const renderChart = (data) => {
     if (!data || data.length === 0) {
       return (
@@ -378,7 +409,7 @@ export function CategoryYoYChart({ monthlyData, ytdData, rawData, selectedMonth,
             dataKey="category" 
             type="category" 
             width={120}
-            tick={{ fontSize: 11, fill: '#374151' }}
+            tick={<CustomYAxisTick />}
             axisLine={{ stroke: '#d1d5db' }}
           />
           <Tooltip content={<CustomTooltip />} />
@@ -392,10 +423,10 @@ export function CategoryYoYChart({ monthlyData, ytdData, rawData, selectedMonth,
             fill="#60A5FA" 
             name="당해" 
             radius={[0, 4, 4, 0]}
-            cursor={drillLevel !== 'l4' ? 'pointer' : 'default'}
+            cursor="pointer"
             onClick={(data) => {
               console.log('📊 Bar onClick:', data);
-              if (data && drillLevel !== 'l4') {
+              if (data) {
                 handleBarClick(data);
               }
             }}

@@ -264,7 +264,7 @@ export function CategoryInsightsPanel({ brand, brandCode, month, rawCostsData, s
           <CardDescription>
             {selectedCategory 
               ? `${selectedCategory} 대분류의 상세 비용 구성을 분석합니다` 
-              : '왼쪽 차트에서 대분류를 선택하세요'
+              : '위 차트에서 대분류를 선택하세요'
             }
           </CardDescription>
         )}
@@ -289,7 +289,7 @@ export function CategoryInsightsPanel({ brand, brandCode, month, rawCostsData, s
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
               {selectedCategory 
                 ? '버튼을 클릭하여 AI 인사이트를 생성하세요'
-                : '👈 왼쪽 차트에서 대분류를 선택하면 해당 카테고리의 AI 분석을 볼 수 있습니다'
+                : '☝️ 위 차트에서 대분류를 선택하면 해당 카테고리의 AI 분석을 볼 수 있습니다'
               }
             </p>
           </div>
