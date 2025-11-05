@@ -586,23 +586,22 @@ export default function BrandDashboardPage() {
           </div>
           
           {/* 카테고리 비용 분석 */}
-          <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
-            <CategoryYoYChart 
-              monthlyData={categoryMonthly}
-              ytdData={categoryYtd}
-              rawData={rawCostsData}
-              selectedMonth={selectedMonth}
-              onCategorySelect={setSelectedCategory}
-            />
-            
-            <CategoryInsightsPanel 
-              brand={brandInfo.name}
-              brandCode={brandCode}
-              month={selectedMonth}
-              rawCostsData={rawCostsData}
-              selectedCategory={selectedCategory}
-            />
-          </div>
+          <CategoryYoYChart 
+            monthlyData={categoryMonthly}
+            ytdData={categoryYtd}
+            rawData={rawCostsData}
+            selectedMonth={selectedMonth}
+            onCategorySelect={setSelectedCategory}
+          />
+          
+          {/* AI 인사이트 패널 */}
+          <CategoryInsightsPanel 
+            brand={brandInfo.name}
+            brandCode={brandCode}
+            month={selectedMonth}
+            rawCostsData={rawCostsData}
+            selectedCategory={selectedCategory}
+          />
           
           {/* 효율성 차트 */}
           <EfficiencyChart data={efficiencyData} />
