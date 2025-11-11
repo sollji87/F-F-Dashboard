@@ -29,7 +29,7 @@ const PASTEL_COLORS = [
 /**
  * 월별 YOY 트렌드 차트 (Stacked Bar + YOY Line)
  */
-export function YoYTrendChart({ data, rawCostsData, title = '월별 비용 추이 및 YOY 비교' }) {
+export function YoYTrendChart({ data, rawCostsData, selectedMonth, title = '월별 비용 추이 및 YOY 비교' }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [drillDownData, setDrillDownData] = useState(null);
@@ -125,9 +125,12 @@ export function YoYTrendChart({ data, rawCostsData, title = '월별 비용 추�
     const months2025 = Object.keys(monthlySubcategories).filter(m => m.startsWith('2025')).sort();
     const months2024 = Object.keys(monthlySubcategories).filter(m => m.startsWith('2024')).sort();
     
-    // 차트 데이터 생성 (2025년 기준, 데이터가 있는 월까지만)
+    // 차트 데이터 생성 (2025년 기준, 선택월까지만)
     const drillData = months2025
       .filter(month => {
+        // 선택월까지만 표시
+        if (selectedMonth && month > selectedMonth) return false;
+        
         // 해당 월에 실제 데이터가 있는지 확인
         const hasData = topSubcategories.some(sub => 
           (monthlySubcategories[month]?.[sub] || 0) > 0
