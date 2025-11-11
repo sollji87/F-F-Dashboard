@@ -101,13 +101,13 @@ export function YoYTrendChart({ data, rawCostsData, title = '월별 비용 추�
       monthlySubcategories[month][subcategory] += amount;
     });
     
-    // 모든 소분류 추출 (상위 10개만)
+    // 모든 소분류 추출
     const allSubcategories = new Set();
     Object.values(monthlySubcategories).forEach(monthData => {
       Object.keys(monthData).forEach(sub => allSubcategories.add(sub));
     });
     
-    // 소분류별 총합 계산 후 상위 10개 선택
+    // 소분류별 총합 계산 후 금액 순으로 정렬
     const subcategoryTotals = {};
     Array.from(allSubcategories).forEach(sub => {
       subcategoryTotals[sub] = Object.values(monthlySubcategories).reduce((sum, monthData) => {
@@ -115,6 +115,7 @@ export function YoYTrendChart({ data, rawCostsData, title = '월별 비용 추�
       }, 0);
     });
     
+    // 상위 10개 소분류만 차트에 표시 (하지만 합계는 전체 금액 사용)
     const topSubcategories = Object.entries(subcategoryTotals)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
@@ -135,23 +136,34 @@ export function YoYTrendChart({ data, rawCostsData, title = '월별 비용 추�
       })
       .map(month => {
         const monthData = { month };
-        let totalCurrent = 0;
-        let totalPrev = 0;
         
-        // 각 소분류별 금액 (2025년)
+        // 각 소분류별 금액 (상위 10개만 차트에 표시)
         topSubcategories.forEach(sub => {
-          const amount = Math.round((monthlySubcategories[month]?.[sub] || 0) / 1000000); // 백만원
+          const rawAmount = monthlySubcategories[month]?.[sub] || 0; // 원 단위 원본
+          const amount = Math.round(rawAmount / 1000000); // 백만원 (표시용)
           monthData[sub] = amount;
-          totalCurrent += amount;
         });
         
-        // 전년(2024년) 동월 데이터
+        // 전체 소분류 합계 (상위 10개가 아닌 전체 금액)
+        let totalCurrentRaw = 0;
+        let totalPrevRaw = 0;
+        
+        // 현재 월의 모든 소분류 합계
+        Object.values(monthlySubcategories[month] || {}).forEach(amount => {
+          totalCurrentRaw += amount;
+        });
+        
+        // 전년(2024년) 동월의 모든 소분류 합계
         const prevMonth = month.replace('2025', '2024');
         if (monthlySubcategories[prevMonth]) {
-          topSubcategories.forEach(sub => {
-            totalPrev += Math.round((monthlySubcategories[prevMonth]?.[sub] || 0) / 1000000);
+          Object.values(monthlySubcategories[prevMonth]).forEach(amount => {
+            totalPrevRaw += amount;
           });
         }
+        
+        // 원본 값 합계를 백만원으로 변환 (반올림은 마지막에 한 번만)
+        const totalCurrent = Math.round(totalCurrentRaw / 1000000);
+        const totalPrev = Math.round(totalPrevRaw / 1000000);
         
         // YOY 계산
         monthData.total_cost = totalCurrent;

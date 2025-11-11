@@ -143,24 +143,33 @@ export default function BrandDashboardPage() {
     
     // 트렌드 데이터 (YOY 계산) - 2025년만 표시
     const trendData = Object.values(monthlyAgg)
-      .filter(d => d.month.startsWith('2025')) // 2025년만 필터링
+      .filter(d => d.month.startsWith('2025') && d.month <= selectedMonth) // 선택월까지만 필터링
       .sort((a, b) => a.month.localeCompare(b.month))
       .map((curr, idx, arr) => {
         const prevYearMonth = `${parseInt(curr.month.substring(0, 4)) - 1}${curr.month.substring(4, 6)}`;
         const prevYear = Object.values(monthlyAgg).find(d => d.month === prevYearMonth);
         const yoy = prevYear ? (curr.cost / prevYear.cost) * 100 : 0;
         
-        // 해당 월의 카테고리별 비용
-        const categories = {};
+        // 해당 월의 카테고리별 비용 (원본 값 유지)
+        const categoriesRaw = {};
         Object.values(categoryMonthlyAgg)
           .filter(c => c.month === curr.month)
           .forEach(c => {
-            categories[c.category] = Math.round(c.cost / 1000000); // 백만원 단위
+            categoriesRaw[c.category] = c.cost; // 원 단위 원본 유지
           });
+        
+        // 카테고리별 비용을 백만원으로 변환 (표시용)
+        const categories = {};
+        Object.entries(categoriesRaw).forEach(([cat, cost]) => {
+          categories[cat] = Math.round(cost / 1000000);
+        });
+        
+        // 전체 비용은 카테고리 원본 합계 후 반올림
+        const totalCostRaw = Object.values(categoriesRaw).reduce((sum, cost) => sum + cost, 0);
         
         return {
           month: curr.month,
-          total_cost: Math.round(curr.cost / 1000000), // 백만원 단위
+          total_cost: Math.round(totalCostRaw / 1000000), // 원본 합계 후 백만원 변환
           prev_cost: prevYear ? Math.round(prevYear.cost / 1000000) : 0, // 전년 비용
           yoy: Math.round(yoy * 10) / 10,
           categories: categories,
@@ -169,6 +178,7 @@ export default function BrandDashboardPage() {
     
     // 효율성 데이터
     const efficiencyData = Object.values(monthlyAgg)
+      .filter(d => d.month <= selectedMonth) // 선택월까지만 필터링
       .sort((a, b) => a.month.localeCompare(b.month))
       .map(d => {
         // 광고비 계산 (광고선전비 카테고리)

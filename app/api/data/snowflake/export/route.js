@@ -61,7 +61,7 @@ export async function POST(request) {
       GROUP BY 1, 2, 3
       ORDER BY 1, 2
     `;
-    
+
     // 쿼리 2: 비용 데이터
     const costQuery = `
       WITH base AS (
@@ -72,8 +72,8 @@ export async function POST(request) {
             cctr_cd AS CCTR_CD,
             cctr_nm AS CCTR_NM,
             CASE WHEN UPPER(cctr_cd) LIKE 'Z%' THEN '매장' ELSE '부서' END AS CCTR_TYPE,
-            ctgr1 AS CATEGORY_L1,
-            ctgr2 AS CATEGORY_L2,
+            CASE WHEN ctgr1 = '제간비' THEN '지급수수료' ELSE ctgr1 END AS CATEGORY_L1,
+            CASE WHEN ctgr1 = '제간비' THEN '지급수수료_기타' ELSE ctgr2 END AS CATEGORY_L2,
             ctgr3 AS CATEGORY_L3,
             gl_cd AS GL_CD,
             gl_nm AS GL_NM,
@@ -155,9 +155,13 @@ export async function POST(request) {
     
     // 1. 매출 데이터 CSV 저장
     const salesCsvHeader = 'YYYYMM,BRD_CD,BRD_NM,TOTAL_SALES\n';
-    const salesCsvRows = salesResult.map(row => 
-      `${row.YYYYMM || ''},${row.BRD_CD || ''},${row.BRD_NM || ''},${row.TOTAL_SALES || 0}`
-    ).join('\n');
+    const salesCsvRows = salesResult.map(row => {
+      // 숫자 값 정리 (쉼표, 공백, 따옴표 제거)
+      const totalSales = typeof row.TOTAL_SALES === 'string' 
+        ? parseFloat(row.TOTAL_SALES.replace(/[,\s"']/g, '')) || 0
+        : (row.TOTAL_SALES || 0);
+      return `${row.YYYYMM || ''},${row.BRD_CD || ''},${row.BRD_NM || ''},${totalSales}`;
+    }).join('\n');
     const salesCsvContent = '\uFEFF' + salesCsvHeader + salesCsvRows; // UTF-8 BOM 추가
     
     const salesFilePath = path.join(publicDataPath, 'snowflake_sales.csv');
@@ -165,9 +169,13 @@ export async function POST(request) {
     
     // 2. 비용 데이터 CSV 저장
     const costCsvHeader = 'YYYYMM,BRD_CD,BRD_NM,CCTR_CD,CCTR_NM,CCTR_TYPE,CATEGORY_L1,CATEGORY_L2,CATEGORY_L3,GL_CD,GL_NM,COST_AMT\n';
-    const costCsvRows = costResult.map(row => 
-      `${row.YYYYMM || ''},${row.BRD_CD || ''},${row.BRD_NM || ''},${row.CCTR_CD || ''},${row.CCTR_NM || ''},${row.CCTR_TYPE || ''},${row.CATEGORY_L1 || ''},${row.CATEGORY_L2 || ''},${row.CATEGORY_L3 || ''},${row.GL_CD || ''},${row.GL_NM || ''},${row.COST_AMT || 0}`
-    ).join('\n');
+    const costCsvRows = costResult.map(row => {
+      // 숫자 값 정리 (쉼표, 공백, 따옴표 제거)
+      const costAmt = typeof row.COST_AMT === 'string' 
+        ? parseFloat(row.COST_AMT.replace(/[,\s"']/g, '')) || 0
+        : (row.COST_AMT || 0);
+      return `${row.YYYYMM || ''},${row.BRD_CD || ''},${row.BRD_NM || ''},${row.CCTR_CD || ''},${row.CCTR_NM || ''},${row.CCTR_TYPE || ''},${row.CATEGORY_L1 || ''},${row.CATEGORY_L2 || ''},${row.CATEGORY_L3 || ''},${row.GL_CD || ''},${row.GL_NM || ''},${costAmt}`;
+    }).join('\n');
     const costCsvContent = '\uFEFF' + costCsvHeader + costCsvRows; // UTF-8 BOM 추가
     
     const costFilePath = path.join(publicDataPath, 'snowflake_costs.csv');
@@ -175,9 +183,13 @@ export async function POST(request) {
     
     // 3. 매장수 데이터 CSV 저장
     const storeCsvHeader = 'PST_YYYYMM,BRD_CD,BRD_NM,CHNL_CD,CHNL_NM,STORE_COUNT\n';
-    const storeCsvRows = storeResult.map(row => 
-      `${row.PST_YYYYMM || ''},${row.BRD_CD || ''},${row.BRD_NM || ''},${row.CHNL_CD || ''},${row.CHNL_NM || ''},${row.STORE_COUNT || 0}`
-    ).join('\n');
+    const storeCsvRows = storeResult.map(row => {
+      // 숫자 값 정리 (쉼표, 공백, 따옴표 제거)
+      const storeCount = typeof row.STORE_COUNT === 'string' 
+        ? parseInt(row.STORE_COUNT.replace(/[,\s"']/g, '')) || 0
+        : (row.STORE_COUNT || 0);
+      return `${row.PST_YYYYMM || ''},${row.BRD_CD || ''},${row.BRD_NM || ''},${row.CHNL_CD || ''},${row.CHNL_NM || ''},${storeCount}`;
+    }).join('\n');
     const storeCsvContent = '\uFEFF' + storeCsvHeader + storeCsvRows; // UTF-8 BOM 추가
     
     const storeFilePath = path.join(publicDataPath, 'snowflake_stores.csv');
