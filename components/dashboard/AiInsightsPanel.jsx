@@ -83,9 +83,35 @@ export function AiInsightsPanel({ brand, brandCode, month, kpi, trendData, topCa
     setEditedInsights(insights);
   };
   
-  const handleSave = () => {
-    setInsights(editedInsights);
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      // API로 저장
+      const response = await fetch('/api/insights/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          brandCode,
+          month,
+          insights: editedInsights,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setInsights(editedInsights);
+        setIsEditing(false);
+        console.log('✅ 월별 인사이트 저장 성공');
+      } else {
+        console.error('❌ 월별 인사이트 저장 실패:', result.error);
+        alert('저장에 실패했습니다: ' + result.error);
+      }
+    } catch (error) {
+      console.error('❌ 월별 인사이트 저장 에러:', error);
+      alert('저장 중 오류가 발생했습니다.');
+    }
   };
   
   const handleCancel = () => {

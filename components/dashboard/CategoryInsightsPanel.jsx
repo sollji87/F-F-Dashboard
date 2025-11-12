@@ -153,9 +153,35 @@ export function CategoryInsightsPanel({ brand, brandCode, month, rawCostsData, s
     setEditedInsights(insights);
   };
   
-  const handleSave = () => {
-    setInsights(editedInsights);
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      // API를 통해 CSV 파일로 저장
+      const response = await fetch('/api/insights/category/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          brandCode,
+          category: selectedCategory,
+          month,
+          insights: editedInsights,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setInsights(editedInsights);
+        setIsEditing(false);
+        alert('✅ 인사이트가 CSV 파일로 저장되었습니다!');
+      } else {
+        alert('❌ 저장 실패: ' + result.error);
+      }
+    } catch (err) {
+      console.error('저장 에러:', err);
+      alert('❌ 저장 중 오류가 발생했습니다.');
+    }
   };
   
   const handleCancel = () => {

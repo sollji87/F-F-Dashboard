@@ -42,6 +42,20 @@ export default function BrandDashboardPage() {
   const [kpiViewMode, setKpiViewMode] = useState('monthly'); // 'monthly' or 'ytd'
   const [selectedCategory, setSelectedCategory] = useState(null); // 선택된 대분류
   
+  // 코멘트 로드
+  const loadComments = async () => {
+    try {
+      const response = await fetch(`/api/comments/load?brandCode=${brandCode}&month=${selectedMonth}`);
+      const result = await response.json();
+      
+      if (result.success && result.comments) {
+        setComments(result.comments);
+      }
+    } catch (err) {
+      console.warn('코멘트 로드 실패:', err);
+    }
+  };
+  
   useEffect(() => {
     if (brandCode) {
       fetchDashboardData();
@@ -74,6 +88,9 @@ export default function BrandDashboardPage() {
         console.warn('⚠️  원본 비용 데이터 로드 실패:', e);
       }
       
+      // 코멘트 로드
+      await loadComments();
+      
     } catch (err) {
       setError(err.message);
     } finally {
@@ -87,9 +104,32 @@ export default function BrandDashboardPage() {
   };
   
   // 코멘트 저장
-  const saveComments = () => {
-    setIsEditMode(false);
-    alert('✅ 코멘트가 저장되었습니다!\n(임시 저장: 페이지 새로고침 시 초기화됩니다)');
+  const saveComments = async () => {
+    try {
+      const response = await fetch('/api/comments/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          brandCode,
+          month: selectedMonth,
+          comments,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setIsEditMode(false);
+        alert('✅ 코멘트가 CSV 파일로 저장되었습니다!');
+      } else {
+        alert('❌ 저장 실패: ' + result.error);
+      }
+    } catch (err) {
+      console.error('저장 에러:', err);
+      alert('❌ 저장 중 오류가 발생했습니다.');
+    }
   };
   
   // 코멘트 변경 핸들러

@@ -3,7 +3,8 @@
 import { useState, useEffect, Fragment } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronRight, ChevronsDown, ChevronsUp } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, Edit2, Save, X } from 'lucide-react';
 
 /**
  * 비용 계정 상세 분석 (계층형 드릴다운)
@@ -17,6 +18,8 @@ export function HierarchicalCostTable({ brand, month, brandColor }) {
   const [allExpanded, setAllExpanded] = useState(false);
 
   const [insights, setInsights] = useState({});
+  const [editingInsightKey, setEditingInsightKey] = useState(null);
+  const [editedInsightText, setEditedInsightText] = useState('');
 
   useEffect(() => {
     fetchCostsData();
@@ -110,6 +113,75 @@ export function HierarchicalCostTable({ brand, month, brandColor }) {
   const getL3Insight = (l1, l2, l3) => {
     const key = `${l1}|${l2}|${l3}`;
     return insights[key] || `전년 대비 변동`;
+  };
+
+  const handleEditInsight = (l1, l2, l3) => {
+    const key = `${l1}|${l2}|${l3}`;
+    setEditingInsightKey(key);
+    setEditedInsightText(insights[key] || '');
+  };
+
+  const handleSaveInsight = async (l1, l2, l3) => {
+    try {
+      const key = `${l1}|${l2}|${l3}`;
+      
+      // 브랜드명 매핑
+      const brandNameMap = {
+        'MLB': 'MLB',
+        'MLB KIDS': 'MLB_KIDS',
+        'MLB_KIDS': 'MLB_KIDS',
+        'MLBKIDS': 'MLB_KIDS',
+        'DUVETICA': 'DUVETICA',
+        'DISCOVERY': 'Discovery',
+        'Discovery': 'Discovery',
+        'SERGIO TACCHINI': 'SERGIO_TACCHINI',
+        'SERGIO_TACCHINI': 'SERGIO_TACCHINI',
+        'SERGIOTACCHINI': 'SERGIO_TACCHINI',
+      };
+      
+      const brandKey = brand.replace(/\s+/g, '').toUpperCase();
+      const brandName = brandNameMap[brand] || brandNameMap[brandKey] || brand.replace(/\s+/g, '_');
+      
+      // API로 저장
+      const response = await fetch('/api/ledger/insights/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          brandName,
+          month,
+          category_l1: l1,
+          category_l2: l2,
+          category_l3: l3,
+          insight: editedInsightText,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // 로컬 상태 업데이트
+        setInsights(prev => ({
+          ...prev,
+          [key]: editedInsightText,
+        }));
+        setEditingInsightKey(null);
+        setEditedInsightText('');
+        console.log('✅ L3 인사이트 저장 성공');
+      } else {
+        console.error('❌ L3 인사이트 저장 실패:', result.error);
+        alert('저장에 실패했습니다: ' + result.error);
+      }
+    } catch (error) {
+      console.error('❌ L3 인사이트 저장 에러:', error);
+      alert('저장 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleCancelEditInsight = () => {
+    setEditingInsightKey(null);
+    setEditedInsightText('');
   };
 
   const generateDescription = (diff, yoy, diffAmount, children = null) => {
@@ -481,7 +553,7 @@ export function HierarchicalCostTable({ brand, month, brandColor }) {
                             return (
                               <div
                                 key={l3.name}
-                                className="grid grid-cols-12 gap-4 px-4 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors border-b"
+                                className="group grid grid-cols-12 gap-4 px-4 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors border-b"
                               >
                                 <div className="col-span-4 flex items-center gap-2 text-sm pl-20">
                                   <span className="text-zinc-600 dark:text-zinc-400">• {l3.name}</span>
@@ -494,8 +566,45 @@ export function HierarchicalCostTable({ brand, month, brandColor }) {
                                 <div className={`col-span-1 text-center text-sm ${typeof l3YoY === 'string' ? 'text-blue-600' : l3YoY >= 100 ? 'text-red-600' : 'text-green-600'}`}>
                                   {typeof l3YoY === 'string' ? l3YoY : `${l3YoY}%`}
                                 </div>
-                                <div className="col-span-4 text-xs text-zinc-500 dark:text-zinc-400 text-left">
-                                  {getL3Insight(l1.name, l2.name, l3.name)}
+                                <div className="col-span-4 text-xs text-zinc-500 dark:text-zinc-400 text-left flex items-center gap-2">
+                                  {editingInsightKey === `${l1.name}|${l2.name}|${l3.name}` ? (
+                                    <div className="flex items-center gap-1 w-full">
+                                      <Input
+                                        value={editedInsightText}
+                                        onChange={(e) => setEditedInsightText(e.target.value)}
+                                        className="text-xs h-7 flex-1"
+                                        autoFocus
+                                      />
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-7 w-7 p-0"
+                                        onClick={() => handleSaveInsight(l1.name, l2.name, l3.name)}
+                                      >
+                                        <Save className="h-3 w-3 text-green-600" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-7 w-7 p-0"
+                                        onClick={handleCancelEditInsight}
+                                      >
+                                        <X className="h-3 w-3 text-red-600" />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <span className="flex-1">{getL3Insight(l1.name, l2.name, l3.name)}</span>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        onClick={() => handleEditInsight(l1.name, l2.name, l3.name)}
+                                      >
+                                        <Edit2 className="h-3 w-3" />
+                                      </Button>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                             );
