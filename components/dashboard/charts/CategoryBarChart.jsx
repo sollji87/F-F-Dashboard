@@ -541,40 +541,59 @@ export function CategoryYoYChart({ monthlyData, ytdData, rawData, selectedMonth,
       });
     }
 
+    // 코스트센터 코드 → 이름 매핑 (최신 이름 저장)
+    const cctrCodeToName = {};
+    
     // 당월/누적 처리
     if (viewMode === 'monthly') {
       // row.month는 "202510" 형식이므로 selectedMonth와 직접 비교
       currentData.filter(row => row.month === selectedMonth && filterCondition(row)).forEach(row => {
-        const key = `${row.cctr_name || '미분류'} (${row.cctr_type || '-'})`;
+        const cctrCode = row.cctr_cd || '미분류';
+        const key = cctrCode; // 코스트센터 코드로 키 생성
         if (!aggregation[key]) aggregation[key] = { current: 0, previous: 0 };
         aggregation[key].current += (row.cost_amt || 0);
+        // 최신 이름 저장
+        cctrCodeToName[cctrCode] = `${row.cctr_name || '미분류'} (${row.cctr_type || '-'})`;
       });
 
       // 전년 동월 (예: 2024년 10월)
       const previousMonthFull = previousYear + currentMonth;
       previousData.filter(row => row.month === previousMonthFull && filterCondition(row)).forEach(row => {
-        const key = `${row.cctr_name || '미분류'} (${row.cctr_type || '-'})`;
+        const cctrCode = row.cctr_cd || '미분류';
+        const key = cctrCode; // 코스트센터 코드로 키 생성
         if (!aggregation[key]) aggregation[key] = { current: 0, previous: 0 };
         aggregation[key].previous += (row.cost_amt || 0);
+        // 이름이 없으면 전년 이름 저장
+        if (!cctrCodeToName[cctrCode]) {
+          cctrCodeToName[cctrCode] = `${row.cctr_name || '미분류'} (${row.cctr_type || '-'})`;
+        }
       });
     } else {
       // YTD
       currentData.filter(filterCondition).forEach(row => {
-        const key = `${row.cctr_name || '미분류'} (${row.cctr_type || '-'})`;
+        const cctrCode = row.cctr_cd || '미분류';
+        const key = cctrCode; // 코스트센터 코드로 키 생성
         if (!aggregation[key]) aggregation[key] = { current: 0, previous: 0 };
         aggregation[key].current += (row.cost_amt || 0);
+        // 최신 이름 저장
+        cctrCodeToName[cctrCode] = `${row.cctr_name || '미분류'} (${row.cctr_type || '-'})`;
       });
 
       previousData.filter(filterCondition).forEach(row => {
-        const key = `${row.cctr_name || '미분류'} (${row.cctr_type || '-'})`;
+        const cctrCode = row.cctr_cd || '미분류';
+        const key = cctrCode; // 코스트센터 코드로 키 생성
         if (!aggregation[key]) aggregation[key] = { current: 0, previous: 0 };
         aggregation[key].previous += (row.cost_amt || 0);
+        // 이름이 없으면 전년 이름 저장
+        if (!cctrCodeToName[cctrCode]) {
+          cctrCodeToName[cctrCode] = `${row.cctr_name || '미분류'} (${row.cctr_type || '-'})`;
+        }
       });
     }
 
     const result = Object.entries(aggregation)
-      .map(([category, data]) => ({
-        category,
+      .map(([cctrCode, data]) => ({
+        category: cctrCodeToName[cctrCode] || cctrCode, // 코드를 이름으로 변환
         current: Math.round(data.current / 1000000),
         previous: Math.round(data.previous / 1000000),
         yoy: data.previous > 0 ? ((data.current / data.previous) * 100).toFixed(1) : 0

@@ -26,6 +26,15 @@ const PASTEL_COLORS = [
   '#F9A8D4', '#A5F3FC', '#FDE68A', '#D8B4FE', '#FDA4AF',
 ];
 
+// 문자열을 해시하여 고정된 색상 인덱스 반환
+const getColorForString = (str) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return PASTEL_COLORS[Math.abs(hash) % PASTEL_COLORS.length];
+};
+
 /**
  * 월별 YOY 트렌드 차트 (Stacked Bar + YOY Line)
  */
@@ -367,7 +376,7 @@ export function YoYTrendChart({ data, rawCostsData, selectedMonth, title = '월�
                   <div className="flex items-center gap-1.5">
                     <div 
                       className="w-2.5 h-2.5 rounded-sm" 
-                      style={{ backgroundColor: PASTEL_COLORS[index % PASTEL_COLORS.length] }}
+                      style={{ backgroundColor: getColorForString(subcat) }}
                     />
                     <span className="text-xs text-zinc-700 dark:text-zinc-300">{subcat}</span>
                   </div>
