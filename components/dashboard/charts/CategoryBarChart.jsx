@@ -535,35 +535,34 @@ export function CategoryYoYChart({ monthlyData, ytdData, rawData, selectedMonth,
         category_l2: sample.category_l2,
         category_l3: sample.category_l3,
         gl_name: sample.gl_name,
+        cctr_code: sample.cctr_code,  // 코스트센터 코드 (언더스코어)
         cctr_name: sample.cctr_name,
         cctr_type: sample.cctr_type,
         cost_amt: sample.cost_amt
       });
     }
 
-    // 코스트센터 코드 → 이름 매핑 (최신 이름 저장)
+    // 코스트센터 코드 → 이름 매핑
     const cctrCodeToName = {};
     
     // 당월/누적 처리
     if (viewMode === 'monthly') {
       // row.month는 "202510" 형식이므로 selectedMonth와 직접 비교
       currentData.filter(row => row.month === selectedMonth && filterCondition(row)).forEach(row => {
-        const cctrCode = row.cctr_cd || '미분류';
-        const key = cctrCode; // 코스트센터 코드로 키 생성
-        if (!aggregation[key]) aggregation[key] = { current: 0, previous: 0 };
-        aggregation[key].current += (row.cost_amt || 0);
-        // 최신 이름 저장
+        const cctrCode = row.cctr_code || '미분류';
+        if (!aggregation[cctrCode]) aggregation[cctrCode] = { current: 0, previous: 0 };
+        aggregation[cctrCode].current += (row.cost_amt || 0);
+        // 당년 이름 저장 (최신 이름)
         cctrCodeToName[cctrCode] = `${row.cctr_name || '미분류'} (${row.cctr_type || '-'})`;
       });
 
       // 전년 동월 (예: 2024년 10월)
       const previousMonthFull = previousYear + currentMonth;
       previousData.filter(row => row.month === previousMonthFull && filterCondition(row)).forEach(row => {
-        const cctrCode = row.cctr_cd || '미분류';
-        const key = cctrCode; // 코스트센터 코드로 키 생성
-        if (!aggregation[key]) aggregation[key] = { current: 0, previous: 0 };
-        aggregation[key].previous += (row.cost_amt || 0);
-        // 이름이 없으면 전년 이름 저장
+        const cctrCode = row.cctr_code || '미분류';
+        if (!aggregation[cctrCode]) aggregation[cctrCode] = { current: 0, previous: 0 };
+        aggregation[cctrCode].previous += (row.cost_amt || 0);
+        // 당년 이름이 없으면 전년 이름 저장
         if (!cctrCodeToName[cctrCode]) {
           cctrCodeToName[cctrCode] = `${row.cctr_name || '미분류'} (${row.cctr_type || '-'})`;
         }
@@ -571,20 +570,18 @@ export function CategoryYoYChart({ monthlyData, ytdData, rawData, selectedMonth,
     } else {
       // YTD
       currentData.filter(filterCondition).forEach(row => {
-        const cctrCode = row.cctr_cd || '미분류';
-        const key = cctrCode; // 코스트센터 코드로 키 생성
-        if (!aggregation[key]) aggregation[key] = { current: 0, previous: 0 };
-        aggregation[key].current += (row.cost_amt || 0);
-        // 최신 이름 저장
+        const cctrCode = row.cctr_code || '미분류';
+        if (!aggregation[cctrCode]) aggregation[cctrCode] = { current: 0, previous: 0 };
+        aggregation[cctrCode].current += (row.cost_amt || 0);
+        // 당년 이름 저장 (최신 이름)
         cctrCodeToName[cctrCode] = `${row.cctr_name || '미분류'} (${row.cctr_type || '-'})`;
       });
 
       previousData.filter(filterCondition).forEach(row => {
-        const cctrCode = row.cctr_cd || '미분류';
-        const key = cctrCode; // 코스트센터 코드로 키 생성
-        if (!aggregation[key]) aggregation[key] = { current: 0, previous: 0 };
-        aggregation[key].previous += (row.cost_amt || 0);
-        // 이름이 없으면 전년 이름 저장
+        const cctrCode = row.cctr_code || '미분류';
+        if (!aggregation[cctrCode]) aggregation[cctrCode] = { current: 0, previous: 0 };
+        aggregation[cctrCode].previous += (row.cost_amt || 0);
+        // 당년 이름이 없으면 전년 이름 저장
         if (!cctrCodeToName[cctrCode]) {
           cctrCodeToName[cctrCode] = `${row.cctr_name || '미분류'} (${row.cctr_type || '-'})`;
         }
