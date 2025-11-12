@@ -175,7 +175,7 @@ export function HierarchicalCostTable({ brand, month, brandColor }) {
   };
 
   const calculateYoY = (current, previous) => {
-    if (!previous || previous === 0) return current > 0 ? 999.9 : 0;
+    if (!previous || previous === 0) return current > 0 ? '신규' : 0;
     return parseFloat(((current / previous) * 100).toFixed(1));
   };
 
@@ -385,8 +385,8 @@ export function HierarchicalCostTable({ brand, month, brandColor }) {
             <div className={`col-span-1 text-right font-semibold text-sm ${totalDiff >= 0 ? 'text-red-600' : 'text-green-600'}`}>
               {totalDiff >= 0 ? '+' : ''}{formatAmount(totalDiff)}
             </div>
-            <div className={`col-span-1 text-center font-semibold text-sm ${totalYoY >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-              {totalYoY}%
+            <div className={`col-span-1 text-center font-semibold text-sm ${typeof totalYoY === 'string' ? 'text-blue-600' : totalYoY >= 100 ? 'text-red-600' : 'text-green-600'}`}>
+              {typeof totalYoY === 'string' ? totalYoY : `${totalYoY}%`}
             </div>
             <div className="col-span-4 text-xs text-zinc-600 dark:text-zinc-400 text-left">
               {generateDescription(totalDiff, totalYoY, totalDiff, hierarchy.children)}
@@ -424,8 +424,8 @@ export function HierarchicalCostTable({ brand, month, brandColor }) {
                   <div className={`col-span-1 text-right text-sm ${l1Diff >= 0 ? 'text-red-600' : 'text-green-600'}`}>
                     {l1Diff >= 0 ? '+' : ''}{formatAmount(l1Diff)}
                   </div>
-                  <div className={`col-span-1 text-center text-sm ${l1YoY >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {l1YoY}%
+                  <div className={`col-span-1 text-center text-sm ${typeof l1YoY === 'string' ? 'text-blue-600' : l1YoY >= 100 ? 'text-red-600' : 'text-green-600'}`}>
+                    {typeof l1YoY === 'string' ? l1YoY : `${l1YoY}%`}
                   </div>
                   <div className="col-span-4 text-xs text-zinc-500 dark:text-zinc-400 text-left">
                     {generateDescription(l1Diff, l1YoY, l1Diff, l1.children)}
@@ -463,8 +463,8 @@ export function HierarchicalCostTable({ brand, month, brandColor }) {
                           <div className={`col-span-1 text-right text-sm ${l2Diff >= 0 ? 'text-red-600' : 'text-green-600'}`}>
                             {l2Diff >= 0 ? '+' : ''}{formatAmount(l2Diff)}
                           </div>
-                          <div className={`col-span-1 text-center text-sm ${l2YoY >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            {l2YoY}%
+                          <div className={`col-span-1 text-center text-sm ${typeof l2YoY === 'string' ? 'text-blue-600' : l2YoY >= 100 ? 'text-red-600' : 'text-green-600'}`}>
+                            {typeof l2YoY === 'string' ? l2YoY : `${l2YoY}%`}
                           </div>
                           <div className="col-span-4 text-xs text-zinc-500 dark:text-zinc-400 text-left">
                             {generateDescription(l2Diff, l2YoY, l2Diff, l2.children)}
@@ -491,8 +491,8 @@ export function HierarchicalCostTable({ brand, month, brandColor }) {
                                 <div className={`col-span-1 text-right text-sm ${l3Diff >= 0 ? 'text-red-600' : 'text-green-600'}`}>
                                   {l3Diff >= 0 ? '+' : ''}{formatAmount(l3Diff)}
                                 </div>
-                                <div className={`col-span-1 text-center text-sm ${l3YoY >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                  {l3YoY}%
+                                <div className={`col-span-1 text-center text-sm ${typeof l3YoY === 'string' ? 'text-blue-600' : l3YoY >= 100 ? 'text-red-600' : 'text-green-600'}`}>
+                                  {typeof l3YoY === 'string' ? l3YoY : `${l3YoY}%`}
                                 </div>
                                 <div className="col-span-4 text-xs text-zinc-500 dark:text-zinc-400 text-left">
                                   {getL3Insight(l1.name, l2.name, l3.name)}
