@@ -21,14 +21,14 @@ export function HierarchicalCostTable({ brand, month, brandColor }) {
   useEffect(() => {
     fetchCostsData();
     fetchInsights();
-  }, [brand, month]);
+  }, [brand, month, viewMode]);
 
   const fetchCostsData = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Fetching ledger data:', { brand, month });
+      console.log('🔍 Fetching ledger data:', { brand, month, viewMode });
       
-      const response = await fetch(`/api/ledger/${brand}?month=${month}`);
+      const response = await fetch(`/api/ledger/${brand}?month=${month}&mode=${viewMode}`);
       console.log('📡 Response status:', response.status);
       
       if (!response.ok) {
