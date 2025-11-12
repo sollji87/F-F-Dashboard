@@ -10,6 +10,8 @@ import { CategoryYoYChart } from '@/components/dashboard/charts/CategoryBarChart
 import { EfficiencyChart } from '@/components/dashboard/charts/EfficiencyChart';
 import { AiInsightsPanel } from '@/components/dashboard/AiInsightsPanel';
 import { CategoryInsightsPanel } from '@/components/dashboard/CategoryInsightsPanel';
+import { LedgerDrilldown } from '@/components/dashboard/LedgerDrilldown';
+import { HierarchicalCostTable } from '@/components/dashboard/HierarchicalCostTable';
 import { PageLoader } from '@/components/dashboard/Loader';
 import { ErrorState } from '@/components/dashboard/ErrorState';
 import { ArrowLeft, Download, Edit3, Save, X, Calendar } from 'lucide-react';
@@ -611,6 +613,13 @@ export default function BrandDashboardPage() {
             month={selectedMonth}
             rawCostsData={rawCostsData}
             selectedCategory={selectedCategory}
+          />
+          
+          {/* 비용 계정 상세 분석 (계층형) */}
+          <HierarchicalCostTable 
+            brand={brandCode} 
+            month={selectedMonth}
+            brandColor={brandInfo.color}
           />
           
           {/* 효율성 차트 */}
