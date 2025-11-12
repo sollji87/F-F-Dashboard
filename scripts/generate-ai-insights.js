@@ -8,6 +8,7 @@ import { OpenAI } from 'openai';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { parse } from 'csv-parse/sync';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,33 +21,176 @@ const openai = new OpenAI({
 });
 
 const BRANDS = ['MLB', 'MLB_KIDS', 'DISCOVERY', 'DUVETICA', 'SERGIO_TACCHINI'];
-const MONTHS = ['202501', '202502', '202503', '202504', '202505', '202506', '202507', '202508', '202509', '202510'];
+const MONTHS = ['202510']; // 10월만 재생성
+
+const BRAND_CODE_MAP = {
+  'MLB': 'M',
+  'MLB_KIDS': 'I',
+  'DISCOVERY': 'X',
+  'DUVETICA': 'V',
+  'SERGIO_TACCHINI': 'ST',
+};
 
 /**
- * 브랜드/월별 데이터 로드
+ * CSV 파일에서 직접 데이터 로드
  */
 async function loadBrandMonthData(brandCode, month) {
   try {
-    // 실제 데이터 로드 (여기서는 간단히 API 호출)
-    const response = await fetch(`http://localhost:3000/api/data/brand/${brandCode}?month=${month}`);
+    const snowflakeBrandCode = BRAND_CODE_MAP[brandCode];
+    const dataPath = path.join(__dirname, '..', 'public', 'data');
     
-    if (!response.ok) {
-      console.error(`❌ API 응답 실패 [${brandCode} ${month}]: ${response.status} ${response.statusText}`);
-      return null;
+    // 매출 데이터 로드
+    const salesPath = path.join(dataPath, 'snowflake_sales.csv');
+    const salesCsv = fs.readFileSync(salesPath, 'utf-8').replace(/^\uFEFF/, ''); // BOM 제거
+    const salesData = parse(salesCsv, { 
+      columns: true, 
+      skip_empty_lines: true,
+      trim: true,
+      relax_column_count: true
+    });
+    
+    // 비용 데이터 로드
+    const costsPath = path.join(dataPath, 'snowflake_costs.csv');
+    const costsCsv = fs.readFileSync(costsPath, 'utf-8').replace(/^\uFEFF/, ''); // BOM 제거
+    const costsData = parse(costsCsv, { 
+      columns: true, 
+      skip_empty_lines: true,
+      trim: true,
+      relax_column_count: true
+    });
+    
+    // 인원수 데이터 로드 (월별 파일)
+    const headcountPath = path.join(dataPath, 'headcount', `headcount_${month}.csv`);
+    const headcountCsv = fs.readFileSync(headcountPath, 'utf-8');
+    const headcountData = parse(headcountCsv, { columns: true, skip_empty_lines: true });
+    
+    // 매장수 데이터 로드 (통합 파일)
+    const storePath = path.join(dataPath, 'snowflake_stores.csv');
+    const storeCsv = fs.readFileSync(storePath, 'utf-8');
+    const allStoreData = parse(storeCsv, { columns: true, skip_empty_lines: true });
+    
+    // 해당 브랜드/월 데이터 필터링
+    console.log(`🔍 필터링 조건: BRD_CD=${snowflakeBrandCode}, YYYYMM=${month}`);
+    console.log(`📊 전체 매출 데이터: ${salesData.length}건`);
+    console.log(`📊 전체 비용 데이터: ${costsData.length}건`);
+    
+    const brandSales = salesData.filter(row => 
+      row.BRD_CD === snowflakeBrandCode && row.YYYYMM === month
+    );
+    const brandCosts = costsData.filter(row => 
+      row.BRD_CD === snowflakeBrandCode && row.YYYYMM === month
+    );
+    
+    console.log(`✅ 필터링된 매출: ${brandSales.length}건`);
+    console.log(`✅ 필터링된 비용: ${brandCosts.length}건`);
+    if (brandSales.length > 0) console.log(`샘플 매출:`, brandSales[0]);
+    if (brandCosts.length > 0) console.log(`샘플 비용:`, brandCosts[0]);
+    
+    // 인원수 데이터 (brand_code로 필터링)
+    const brandHeadcount = headcountData.find(row => row.brand_code === brandCode);
+    const headcount = brandHeadcount ? parseInt(brandHeadcount.headcount || 0) : 0;
+    
+    // 매장수 데이터 (BRD_CD와 PST_YYYYMM으로 필터링 후 합계)
+    const brandStores = allStoreData.filter(row => 
+      row.BRD_CD === snowflakeBrandCode && row.PST_YYYYMM === month
+    );
+    const storeCount = brandStores.reduce((sum, row) => sum + parseInt(row.STORE_COUNT || 0), 0);
+    
+    // KPI 계산 (공통비 제외)
+    const totalSales = brandSales.reduce((sum, row) => sum + parseFloat(row.TOTAL_SALES || 0), 0) / 1000000;
+    const brandCostsExcludingCommon = brandCosts.filter(row => row.CATEGORY_L1 !== '공통비');
+    const totalCost = brandCostsExcludingCommon.reduce((sum, row) => sum + parseFloat(row.COST_AMT || 0), 0) / 1000000;
+    
+    const costRatio = totalSales > 0 ? (totalCost / totalSales * 100).toFixed(1) : 0;
+    const costPerPerson = headcount > 0 ? (totalCost / headcount).toFixed(1) : 0;
+    const costPerStore = storeCount > 0 ? (totalCost / storeCount).toFixed(1) : 0;
+    
+    // 전년 동월 데이터 (YOY 계산, 공통비 제외)
+    const prevYear = (parseInt(month.substring(0, 4)) - 1).toString();
+    const prevMonth = prevYear + month.substring(4, 6);
+    const prevYearCosts = costsData.filter(row => 
+      row.BRD_CD === snowflakeBrandCode && row.YYYYMM === prevMonth && row.CATEGORY_L1 !== '공통비'
+    );
+    const prevTotalCost = prevYearCosts.reduce((sum, row) => sum + parseFloat(row.COST_AMT || 0), 0) / 1000000;
+    const yoy = prevTotalCost > 0 ? ((totalCost - prevTotalCost) / prevTotalCost * 100).toFixed(1) : 0;
+    
+    // 카테고리별 집계 (공통비 제외)
+    const categoryMap = {};
+    brandCostsExcludingCommon.forEach(row => {
+      const category = row.CATEGORY_L1 || '기타';
+      if (!categoryMap[category]) {
+        categoryMap[category] = 0;
+      }
+      categoryMap[category] += parseFloat(row.COST_AMT || 0) / 1000000;
+    });
+    
+    const categoryMonthly = Object.entries(categoryMap)
+      .map(([category, amount]) => ({
+        category,
+        current: Math.round(amount),
+      }))
+      .sort((a, b) => b.current - a.current);
+    
+    // 월별 추이 데이터 (최근 6개월, 공통비 제외)
+    const trendData = [];
+    for (let i = 5; i >= 0; i--) {
+      const targetMonth = getMonthOffset(month, -i);
+      const monthCosts = costsData.filter(row => 
+        row.BRD_CD === snowflakeBrandCode && row.YYYYMM === targetMonth && row.CATEGORY_L1 !== '공통비'
+      );
+      const monthTotal = monthCosts.reduce((sum, row) => sum + parseFloat(row.COST_AMT || 0), 0) / 1000000;
+      
+      const prevYearMonth = getMonthOffset(targetMonth, -12);
+      const prevYearMonthCosts = costsData.filter(row => 
+        row.BRD_CD === snowflakeBrandCode && row.YYYYMM === prevYearMonth && row.CATEGORY_L1 !== '공통비'
+      );
+      const prevYearMonthTotal = prevYearMonthCosts.reduce((sum, row) => sum + parseFloat(row.COST_AMT || 0), 0) / 1000000;
+      const monthYoy = prevYearMonthTotal > 0 ? ((monthTotal - prevYearMonthTotal) / prevYearMonthTotal * 100) : 0;
+      
+      trendData.push({
+        month: targetMonth,
+        total_cost: Math.round(monthTotal),
+        yoy: monthYoy,
+      });
     }
     
-    const result = await response.json();
-    
-    if (!result.success || !result.data) {
-      console.error(`❌ 데이터 형식 오류 [${brandCode} ${month}]:`, result);
-      return null;
-    }
-    
-    return result.data;
+    return {
+      kpi: {
+        total_cost: Math.round(totalCost),
+        cost_ratio: parseFloat(costRatio),
+        cost_per_person: parseFloat(costPerPerson),
+        cost_per_store: parseFloat(costPerStore),
+        yoy: parseFloat(yoy),
+      },
+      trendData,
+      categoryMonthly,
+    };
   } catch (error) {
     console.error(`❌ 데이터 로드 실패 [${brandCode} ${month}]:`, error.message);
     return null;
   }
+}
+
+/**
+ * 월 오프셋 계산 (YYYYMM 형식)
+ */
+function getMonthOffset(month, offset) {
+  const year = parseInt(month.substring(0, 4));
+  const monthNum = parseInt(month.substring(4, 6));
+  
+  let newYear = year;
+  let newMonth = monthNum + offset;
+  
+  while (newMonth > 12) {
+    newMonth -= 12;
+    newYear += 1;
+  }
+  while (newMonth < 1) {
+    newMonth += 12;
+    newYear -= 1;
+  }
+  
+  return newYear.toString() + newMonth.toString().padStart(2, '0');
 }
 
 /**
