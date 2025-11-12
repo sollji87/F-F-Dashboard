@@ -77,6 +77,9 @@ export async function GET(request, { params }) {
           // 브랜드 매칭
           if (rowBrand !== normalizedBrand) return false;
           
+          // 공통비 제외
+          if (row.CATEGORY_L1 === '공통비') return false;
+          
           // 연도 매칭
           if (rowYear !== yearFilter) return false;
           
