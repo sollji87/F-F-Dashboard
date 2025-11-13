@@ -442,7 +442,9 @@ export function YoYTrendChart({ data, rawCostsData, selectedMonth, title = '월�
               tickFormatter={(value) => `${value.toLocaleString()}`}
               label={{ value: '비용 (백만원)', angle: -90, position: 'insideLeft', style: { fontSize: 12, fill: '#6b7280' } }}
               axisLine={{ stroke: '#d1d5db' }}
-              domain={[0, 'auto']}
+              domain={[0, 'dataMax']}
+              allowDataOverflow={false}
+              scale="linear"
             />
             <YAxis 
               yAxisId="right"
@@ -577,7 +579,9 @@ export function YoYTrendChart({ data, rawCostsData, selectedMonth, title = '월�
                   tickFormatter={(value) => `${value.toLocaleString()}`}
                   label={{ value: '비용 (백만원)', angle: -90, position: 'insideLeft', style: { fontSize: 12, fill: '#6b7280' } }}
                   axisLine={{ stroke: '#d1d5db' }}
-                  domain={[0, 'auto']}
+                  domain={[0, 'dataMax']}
+                  allowDataOverflow={false}
+                  scale="linear"
                 />
                 <YAxis 
                   yAxisId="right"
