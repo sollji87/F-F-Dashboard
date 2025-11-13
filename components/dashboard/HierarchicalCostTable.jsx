@@ -169,6 +169,44 @@ export function HierarchicalCostTable({ brand, month, brandColor }) {
         setEditingInsightKey(null);
         setEditedInsightText('');
         console.log('✅ L3 인사이트 저장 성공');
+        
+        // CSV 파일 검증: 저장 후 실제 파일에서 다시 읽어서 확인
+        try {
+          const verifyResponse = await fetch(`/data/ledger_insights/${brandName}_${month}_insights.csv`);
+          if (verifyResponse.ok) {
+            const verifyText = await verifyResponse.text();
+            const verifyLines = verifyText.trim().split('\n').slice(1); // 헤더 제외
+            
+            // 해당 L3 계정 찾기
+            const foundLine = verifyLines.find(line => {
+              const match = line.match(/"([^"]+)","([^"]+)","([^"]+)","([^"]+)","([^"]+)",([^,]+),([^,]+),([^,]+),([^,]+),"([^"]+)"/);
+              if (match) {
+                const [, , level, verifyL1, verifyL2, verifyL3, , , , , verifyInsight] = match;
+                return level === 'L3' && verifyL1 === l1 && verifyL2 === l2 && verifyL3 === l3;
+              }
+              return false;
+            });
+            
+            if (foundLine) {
+              const match = foundLine.match(/"([^"]+)","([^"]+)","([^"]+)","([^"]+)","([^"]+)",([^,]+),([^,]+),([^,]+),([^,]+),"([^"]+)"/);
+              if (match) {
+                const savedInsight = match[10];
+                if (savedInsight === editedInsightText) {
+                  console.log('✅ CSV 파일 검증 성공: 변경사항이 정상적으로 반영되었습니다.');
+                  console.log(`   저장된 인사이트: "${savedInsight}"`);
+                } else {
+                  console.warn('⚠️ CSV 파일 검증 경고: 저장된 값이 다릅니다.');
+                  console.log(`   기대값: "${editedInsightText}"`);
+                  console.log(`   실제값: "${savedInsight}"`);
+                }
+              }
+            } else {
+              console.warn('⚠️ CSV 파일에서 해당 계정을 찾을 수 없습니다.');
+            }
+          }
+        } catch (verifyError) {
+          console.warn('⚠️ CSV 파일 검증 중 오류:', verifyError);
+        }
       } else {
         console.error('❌ L3 인사이트 저장 실패:', result.error);
         alert('저장에 실패했습니다: ' + result.error);
