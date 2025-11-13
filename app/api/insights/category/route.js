@@ -1,13 +1,23 @@
 import { NextResponse } from 'next/server';
 import { loadCategoryInsightsFromCSV, saveCategoryInsightsToCSV } from '@/lib/aiInsightsLoader';
-import { OpenAI } from 'openai';
 import fs from 'fs';
 import path from 'path';
 import { parse } from 'csv-parse/sync';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// OpenAI는 런타임에만 초기화 (빌드 타임 에러 방지)
+let OpenAI;
+let openai;
+
+if (process.env.OPENAI_API_KEY) {
+  try {
+    OpenAI = require('openai').OpenAI;
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  } catch (error) {
+    console.warn('⚠️  OpenAI 모듈 로드 실패:', error.message);
+  }
+}
 
 /**
  * 렛저 인사이트 데이터 로드 (카테고리별 상세 분석)
