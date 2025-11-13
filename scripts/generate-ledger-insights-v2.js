@@ -146,45 +146,54 @@ async function analyzeWithTransactions(brand, accountName, prevData, currData) {
   const newKeywords = [...currKeywordSet].filter(k => !prevKeywordSet.has(k)).slice(0, 5);
   const removedKeywords = [...prevKeywordSet].filter(k => !currKeywordSet.has(k)).slice(0, 5);
   
-  let prompt = `당신은 패션 브랜드의 재무 분석 전문가입니다. 전표 텍스트를 **매우 꼼꼼히** 비교하여 구체적인 변동 원인을 찾아야 합니다.
+  let prompt = `당신은 패션 브랜드의 재무 분석 전문가입니다. 전표 텍스트를 **매우 꼼꼼히** 비교 분석하여 구체적이고 실용적인 변동 원인을 찾아야 합니다.
 
-브랜드: ${brand}
-계정: ${accountName}
+## 📊 분석 대상
+- 브랜드: ${brand}
+- 계정: ${accountName}
 
-【전년 (${PREV_MONTH.substring(0, 4)}년 ${parseInt(PREV_MONTH.substring(4, 6))}월)】
-- 총액: ${(prevSummary.total / 1000000).toFixed(0)}백만원 (${prevSummary.count}건)
-- 주요 키워드: ${prevSummary.keywords.slice(0, 10).join(', ')}
-- 주요 전표 (금액 큰 순 상위 30개):
+## 📅 전년 데이터 (${PREV_MONTH.substring(0, 4)}년 ${parseInt(PREV_MONTH.substring(4, 6))}월)
+- 총액: ${(prevSummary.total / 1000000).toFixed(0)}백만원
+- 전표 건수: ${prevSummary.count}건
+- 주요 키워드: ${prevSummary.keywords.slice(0, 15).join(', ')}
+- 주요 전표 내역 (금액 큰 순 상위 30개):
 ${prevTexts.map((t, i) => `  ${i + 1}. ${t}`).join('\n')}
 
-【당년 (${CURRENT_MONTH.substring(0, 4)}년 ${parseInt(CURRENT_MONTH.substring(4, 6))}월)】
-- 총액: ${(currSummary.total / 1000000).toFixed(0)}백만원 (${currSummary.count}건)
-- 주요 키워드: ${currSummary.keywords.slice(0, 10).join(', ')}
-- 주요 전표 (금액 큰 순 상위 30개):
+## 📅 당년 데이터 (${CURRENT_MONTH.substring(0, 4)}년 ${parseInt(CURRENT_MONTH.substring(4, 6))}월)
+- 총액: ${(currSummary.total / 1000000).toFixed(0)}백만원
+- 전표 건수: ${currSummary.count}건
+- 주요 키워드: ${currSummary.keywords.slice(0, 15).join(', ')}
+- 주요 전표 내역 (금액 큰 순 상위 30개):
 ${currTexts.map((t, i) => `  ${i + 1}. ${t}`).join('\n')}
 
-【변동 분석】
-- 차이: ${diff >= 0 ? '+' : ''}${(diff / 1000000).toFixed(0)}백만원 (${yoy}%)
-${newKeywords.length > 0 ? `- 신규 키워드: ${newKeywords.join(', ')}` : ''}
-${removedKeywords.length > 0 ? `- 제거된 키워드: ${removedKeywords.join(', ')}` : ''}
+## 📈 변동 요약
+- 금액 차이: ${diff >= 0 ? '+' : ''}${(diff / 1000000).toFixed(0)}백만원 (YOY ${yoy}%)
+- 전표 건수 차이: ${currSummary.count - prevSummary.count >= 0 ? '+' : ''}${currSummary.count - prevSummary.count}건
+${newKeywords.length > 0 ? `- 신규 등장 키워드: ${newKeywords.join(', ')}` : ''}
+${removedKeywords.length > 0 ? `- 사라진 키워드: ${removedKeywords.join(', ')}` : ''}
 
-**분석 지침:**
-1. 전년과 당년의 전표 텍스트를 **한 줄씩 비교**하세요
-2. 신규로 등장한 구체적인 이름/프로젝트를 찾으세요 (예: "카리나", "뉴진스", "특정 캠페인명")
-3. 사라진 항목이나 금액이 크게 변동된 항목을 찾으세요
-4. 키워드 변화도 참고하세요
+## 🔍 심층 분석 지침
+1. **전표 비교**: 전년과 당년의 전표를 한 줄씩 대조하여 차이점을 식별하세요
+2. **고유명사 추출**: 신규로 등장한 구체적인 인명, 프로젝트명, 캠페인명, 장소명을 찾으세요
+3. **패턴 분석**: 금액 변동이 큰 항목, 사라진 항목, 신규 항목의 패턴을 파악하세요
+4. **키워드 분석**: 신규/제거 키워드를 통해 전략적 변화를 추론하세요
+5. **비즈니스 맥락**: 패션 산업의 계절성, 마케팅 캠페인, 조직 변화 등을 고려하세요
 
+## ✅ 출력 요구사항
 **30자 이내**로 가장 구체적이고 핵심적인 원인을 작성하세요.
 
-좋은 예시:
-- "신규 모델(카리나) 계약으로 비용 증가"
-- "온라인 광고 캠페인(MLB X 뉴진스) 확대"
-- "매장 리뉴얼 공사 완료로 비용 감소"
+### 우수 사례 (구체적 고유명사 포함):
+- "신규 모델(변우석) 계약으로 비용 대폭 증가"
+- "무신사 광고 정산 선금으로 비용 증가"
+- "매장 리뉴얼(강남점) 완료로 비용 감소"
+- "캠페인(MLB X 뉴진스) 종료로 감소"
 
-나쁜 예시 (너무 일반적):
+### 부적합 사례 (너무 일반적):
 - "광고비 증가"
 - "비용 감소"
-- "전년 대비 변동"`;
+- "전년 대비 변동"
+
+반드시 구체적인 고유명사(인명, 장소, 프로젝트명)를 포함하세요!`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -192,15 +201,15 @@ ${removedKeywords.length > 0 ? `- 제거된 키워드: ${removedKeywords.join(',
       messages: [
         {
           role: 'system',
-          content: '당신은 전표 텍스트를 한 줄씩 꼼꼼히 비교하여 구체적인 변동 원인(인명, 프로젝트명, 캠페인명 등)을 찾아내는 재무 분석 전문가입니다. 일반적인 표현 대신 구체적인 고유명사를 반드시 포함하세요.',
+          content: '당신은 전표 텍스트를 한 줄씩 꼼꼼히 비교 분석하여 구체적인 변동 원인(인명, 프로젝트명, 캠페인명, 장소명 등)을 찾아내는 재무 분석 전문가입니다. 일반적인 표현 대신 구체적인 고유명사를 반드시 포함하세요.',
         },
         {
           role: 'user',
           content: prompt,
         },
       ],
-      temperature: 0.2, // 더 정확한 분석
-      max_tokens: 150,
+      temperature: 0.2, // 정확한 분석을 위해 낮게 설정
+      max_tokens: 200,
     });
 
     let insight = response.choices[0].message.content.trim();

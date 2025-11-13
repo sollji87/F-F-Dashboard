@@ -194,61 +194,137 @@ function getMonthOffset(month, offset) {
 }
 
 /**
+ * 렛저 인사이트 데이터 로드 (카테고리별 상세 분석)
+ */
+function loadLedgerInsights(brandCode, month) {
+  try {
+    const brandNameMap = {
+      'MLB': 'MLB',
+      'MLB_KIDS': 'MLB_KIDS',
+      'DISCOVERY': 'Discovery',
+      'DUVETICA': 'Duvetica',
+      'SERGIO_TACCHINI': 'SERGIO_TACCHINI',
+    };
+    
+    const brandName = brandNameMap[brandCode];
+    const ledgerPath = path.join(__dirname, '..', 'public', 'data', 'ledger_insights', `${brandName}_${month}_insights.csv`);
+    
+    if (!fs.existsSync(ledgerPath)) {
+      console.log(`⚠️  렛저 인사이트 파일 없음: ${brandName}_${month}_insights.csv`);
+      return [];
+    }
+    
+    const ledgerCsv = fs.readFileSync(ledgerPath, 'utf-8').replace(/^\uFEFF/, '');
+    const ledgerData = parse(ledgerCsv, { 
+      columns: true, 
+      skip_empty_lines: true,
+      trim: true,
+      relax_column_count: true
+    });
+    
+    // L3 레벨만 필터링하고 주요 항목만 추출 (금액 큰 순 상위 20개)
+    const l3Items = ledgerData
+      .filter(row => row.level === 'L3')
+      .map(row => ({
+        category_l1: row.category_l1,
+        category_l2: row.category_l2,
+        category_l3: row.category_l3,
+        current_amount: parseFloat(row.current_amount || 0),
+        prev_amount: parseFloat(row.prev_amount || 0),
+        diff: parseFloat(row.diff || 0),
+        yoy: parseFloat(row.yoy || 0),
+        insight: row.insight || '',
+      }))
+      .sort((a, b) => Math.abs(b.current_amount) - Math.abs(a.current_amount))
+      .slice(0, 20);
+    
+    console.log(`✅ 렛저 인사이트 로드: ${l3Items.length}개 항목`);
+    return l3Items;
+  } catch (error) {
+    console.error(`❌ 렛저 인사이트 로드 실패:`, error.message);
+    return [];
+  }
+}
+
+/**
  * AI 인사이트 생성
  */
 async function generateInsight(brandCode, month, data) {
   try {
     const { kpi, trendData, categoryMonthly } = data;
+    
+    // 렛저 인사이트 데이터 로드
+    const ledgerInsights = loadLedgerInsights(brandCode, month);
 
-    // 월별 추이 데이터 포맷팅
-    const trendSummary = trendData?.slice(-6).map(d => 
+    // 월별 추이 데이터 포맷팅 (최근 12개월로 확대)
+    const trendSummary = trendData?.slice(-12).map(d => 
       `${d.month.substring(4,6)}월: ${d.total_cost.toLocaleString()}백만원 (YOY ${d.yoy.toFixed(1)}%)`
     ).join('\n') || '데이터 없음';
 
-    // 주요 카테고리
-    const topCategories = categoryMonthly?.slice(0, 5).map(cat => ({
+    // 주요 카테고리 (TOP 10으로 확대)
+    const topCategories = categoryMonthly?.slice(0, 10).map(cat => ({
       name: cat.category,
       amount: cat.current,
+      prevAmount: cat.previous,
+      diff: cat.current - cat.previous,
+      yoy: cat.previous > 0 ? (((cat.current - cat.previous) / cat.previous) * 100).toFixed(1) : 0,
       ratio: ((cat.current / kpi.total_cost) * 100).toFixed(1),
     })) || [];
 
-    // 프롬프트 생성
-    const prompt = `당신은 비용 분석 전문가입니다. 다음 데이터를 분석하여 인사이트를 제공해주세요.
+    // 렛저 인사이트 포맷팅 (상위 20개 계정)
+    const ledgerSummary = ledgerInsights.length > 0 
+      ? ledgerInsights.map(item => 
+          `- ${item.category_l1} > ${item.category_l3}: ${(item.current_amount / 1000000).toFixed(0)}백만원 (YOY ${item.yoy.toFixed(1)}%, ${item.diff >= 0 ? '+' : ''}${(item.diff / 1000000).toFixed(0)}백만원) - ${item.insight}`
+        ).join('\n')
+      : '상세 데이터 없음';
 
-브랜드: ${brandCode}
-기준월: ${month}
+    // 프롬프트 생성 (강화된 버전)
+    const prompt = `당신은 패션 브랜드의 재무 및 비용 분석 전문가입니다. 다음 데이터를 **깊이 있게 분석**하여 실용적이고 구체적인 인사이트를 제공해주세요.
 
-KPI 지표:
+## 📊 브랜드 정보
+- 브랜드: ${brandCode}
+- 기준월: ${month.substring(0,4)}년 ${month.substring(4,6)}월
+
+## 💰 핵심 KPI 지표
 - 총비용: ${kpi.total_cost?.toLocaleString()}백만원
 - 매출대비 비용률: ${kpi.cost_ratio}%
 - 인당 비용: ${kpi.cost_per_person}백만원
-- 매장당 비용: ${kpi.cost_per_store}백만원
 - 전년 대비 증감률(YOY): ${kpi.yoy}%
 
-월별 비용 추이 (최근 6개월):
+**참고**: 매장 운영비는 직접비로 분류되어 이 대시보드에는 포함되지 않습니다.
+
+## 📈 월별 비용 추이 (최근 12개월)
 ${trendSummary}
 
-주요 비용 카테고리:
-${topCategories.map(cat => `- ${cat.name}: ${cat.amount?.toLocaleString()}백만원 (${cat.ratio}%)`).join('\n')}
+## 🎯 주요 비용 카테고리 (TOP 10)
+${topCategories.map(cat => `- ${cat.name}: ${cat.amount?.toLocaleString()}백만원 (비중 ${cat.ratio}%, YOY ${cat.yoy}%, 증감 ${cat.diff >= 0 ? '+' : ''}${cat.diff?.toLocaleString()}백만원)`).join('\n')}
 
-분석 관점: 월별 비용 추이 및 YOY 증감 패턴을 분석하여 인사이트를 제공해주세요.
+## 📋 계정별 상세 내역 (금액 큰 순 TOP 20)
+${ledgerSummary}
 
-다음 형식으로 JSON 응답을 생성해주세요:
+## 🔍 분석 요구사항
+1. **트렌드 분석**: 12개월 추이에서 패턴(계절성, 증가/감소 추세, 변곡점)을 식별하세요
+2. **카테고리 심층 분석**: 계정별 상세 내역을 참고하여 주목할 만한 변동(급증/급감)과 구체적 원인을 파악하세요
+3. **효율성 평가**: 매출대비 비용률, 인당 비용의 적정성을 평가하세요
+4. **리스크 식별**: 비용 증가 리스크, 비효율 요인, 관리 포인트를 찾으세요
+5. **실행 가능한 제안**: 구체적이고 즉시 실행 가능한 액션 아이템을 제시하세요 (부서명 제외)
+
+## 📝 출력 형식 (JSON)
 {
-  "summary": "전체 요약 (2-3문장)",
-  "key_findings": ["주요 발견사항 1", "주요 발견사항 2", "주요 발견사항 3"],
-  "risks": ["리스크 요인 1", "리스크 요인 2"],
-  "action_items": ["액션 아이템 1", "액션 아이템 2", "액션 아이템 3"]
+  "summary": "전체 요약 (3-4문장, 핵심 수치와 트렌드 포함)",
+  "key_findings": ["주요 발견사항 1 (구체적 수치와 계정명 포함)", "주요 발견사항 2 (구체적 수치와 계정명 포함)", "주요 발견사항 3 (구체적 수치와 계정명 포함)"],
+  "risks": ["리스크 요인 1 (영향도 포함)", "리스크 요인 2 (영향도 포함)"],
+  "action_items": ["실행 가능한 액션 1", "실행 가능한 액션 2", "실행 가능한 액션 3"]
 }`;
 
-    console.log(`🤖 AI 분석 중 [${brandCode} ${month}]...`);
+    console.log(`🤖 AI 분석 중 (gpt-4o) [${brandCode} ${month}]...`);
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
-          content: '당신은 재무 및 비용 분석 전문가입니다. 데이터를 기반으로 실용적이고 구체적인 인사이트를 제공합니다.',
+          content: '당신은 패션 브랜드의 재무 및 비용 분석 전문가입니다. 데이터를 깊이 있게 분석하여 실용적이고 구체적인 인사이트를 제공합니다.',
         },
         {
           role: 'user',
@@ -256,8 +332,8 @@ ${topCategories.map(cat => `- ${cat.name}: ${cat.amount?.toLocaleString()}백만
         },
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.7,
-      max_tokens: 1500,
+      temperature: 0.3, // 정확한 분석을 위해 낮게 설정
+      max_tokens: 3000,
     });
 
     const insights = JSON.parse(completion.choices[0].message.content);
