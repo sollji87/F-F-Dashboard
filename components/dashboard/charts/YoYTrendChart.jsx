@@ -450,7 +450,7 @@ export function YoYTrendChart({ data, rawCostsData, selectedMonth, title = 'ì›”ë
               tick={{ fontSize: 11, fill: '#6b7280' }}
               tickFormatter={(value) => `${Math.round(value)}%`}
               label={{ value: 'YOY (%)', angle: 90, position: 'insideRight', style: { fontSize: 12, fill: '#6b7280' } }}
-              domain={['dataMin - 10', 'dataMax + 10']}
+              domain={[0, 'dataMax + 10']}
               axisLine={{ stroke: '#d1d5db' }}
             />
             <Tooltip content={<CustomTooltip />} />
@@ -585,7 +585,7 @@ export function YoYTrendChart({ data, rawCostsData, selectedMonth, title = 'ì›”ë
                   tick={{ fontSize: 11, fill: '#6b7280' }}
                   tickFormatter={(value) => `${Math.round(value)}%`}
                   label={{ value: 'YOY (%)', angle: 90, position: 'insideRight', style: { fontSize: 12, fill: '#6b7280' } }}
-                  domain={['dataMin - 10', 'dataMax + 10']}
+                  domain={[0, 'dataMax + 10']}
                   axisLine={{ stroke: '#d1d5db' }}
                 />
                 <Tooltip content={(props) => <DrillDownTooltip {...props} category={drillDownData.category} />} />
