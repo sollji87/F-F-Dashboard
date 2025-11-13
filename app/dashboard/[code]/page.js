@@ -265,7 +265,49 @@ export default function BrandDashboardPage() {
       }))
       .sort((a, b) => b.current - a.current);
     
-    return { trendData, categoryMonthly, categoryYtd: categoryMonthly, efficiencyData };
+    // 카테고리별 누적 집계 (YTD)
+    const currentYear = selectedMonth.substring(0, 4);
+    const currentMonthNum = parseInt(selectedMonth.substring(4, 6));
+    const prevYear = (parseInt(currentYear) - 1).toString();
+    
+    // 당년 1월~선택월 누적
+    const ytdCurrentData = monthly_data.filter(d => {
+      const dataYear = d.month.substring(0, 4);
+      const dataMonth = parseInt(d.month.substring(4, 6));
+      return dataYear === currentYear && dataMonth <= currentMonthNum;
+    });
+    
+    // 전년 1월~선택월 누적
+    const ytdPrevData = monthly_data.filter(d => {
+      const dataYear = d.month.substring(0, 4);
+      const dataMonth = parseInt(d.month.substring(4, 6));
+      return dataYear === prevYear && dataMonth <= currentMonthNum;
+    });
+    
+    const categoryYtdAgg = {};
+    ytdCurrentData.forEach(row => {
+      if (!categoryYtdAgg[row.category_l1]) {
+        categoryYtdAgg[row.category_l1] = { current: 0, previous: 0 };
+      }
+      categoryYtdAgg[row.category_l1].current += row.cost_amt;
+    });
+    
+    ytdPrevData.forEach(row => {
+      if (!categoryYtdAgg[row.category_l1]) {
+        categoryYtdAgg[row.category_l1] = { current: 0, previous: 0 };
+      }
+      categoryYtdAgg[row.category_l1].previous += row.cost_amt;
+    });
+    
+    const categoryYtd = Object.entries(categoryYtdAgg)
+      .map(([category, data]) => ({
+        category,
+        current: Math.round(data.current),
+        previous: Math.round(data.previous),
+      }))
+      .sort((a, b) => b.current - a.current);
+    
+    return { trendData, categoryMonthly, categoryYtd, efficiencyData };
   };
   
   if (loading) {

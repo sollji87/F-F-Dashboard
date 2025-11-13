@@ -31,9 +31,10 @@ export function CategoryYoYChart({ monthlyData, ytdData, rawData, selectedMonth,
   const [selectedL3, setSelectedL3] = useState(null);
   const [selectedL4, setSelectedL4] = useState(null); // GL_NM
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [currentViewMode, setCurrentViewMode] = useState('monthly'); // 현재 탭 추적
 
   // 드릴다운 데이터 생성
-  const getDrillDownData = (level, parent) => {
+  const getDrillDownData = (level, parent, viewMode = 'monthly') => {
     if (!rawData || !selectedMonth) {
       console.log('❌ rawData or selectedMonth missing:', { hasRawData: !!rawData, selectedMonth });
       return [];
@@ -43,10 +44,29 @@ export function CategoryYoYChart({ monthlyData, ytdData, rawData, selectedMonth,
     const prevYear = (parseInt(currentYear) - 1).toString();
     const monthNum = selectedMonth.substring(4, 6);
 
-    // 현재 월 데이터 (month 필드 사용)
-    const currentData = rawData.filter(row => row.month === selectedMonth);
-    // 전년 동월 데이터
-    const previousData = rawData.filter(row => row.month === `${prevYear}${monthNum}`);
+    // 당월 vs 누적 처리
+    let currentData, previousData;
+    
+    if (viewMode === 'ytd') {
+      // 누적: 1월~선택월까지
+      currentData = rawData.filter(row => {
+        const rowYear = row.month.substring(0, 4);
+        const rowMonth = parseInt(row.month.substring(4, 6));
+        const selectedMonthNum = parseInt(monthNum);
+        return rowYear === currentYear && rowMonth <= selectedMonthNum;
+      });
+      
+      previousData = rawData.filter(row => {
+        const rowYear = row.month.substring(0, 4);
+        const rowMonth = parseInt(row.month.substring(4, 6));
+        const selectedMonthNum = parseInt(monthNum);
+        return rowYear === prevYear && rowMonth <= selectedMonthNum;
+      });
+    } else {
+      // 당월: 선택된 월만
+      currentData = rawData.filter(row => row.month === selectedMonth);
+      previousData = rawData.filter(row => row.month === `${prevYear}${monthNum}`);
+    }
 
     console.log(`📊 드릴다운 [${level}] [${parent}]:`, {
       currentDataCount: currentData.length,
@@ -128,11 +148,11 @@ export function CategoryYoYChart({ monthlyData, ytdData, rawData, selectedMonth,
 
   // 바 클릭 핸들러
   const handleBarClick = (data) => {
-    console.log('🖱️ 바 클릭:', { drillLevel, data });
+    console.log('🖱️ 바 클릭:', { drillLevel, data, currentViewMode });
     
     if (drillLevel === 'l1') {
       // 대분류 클릭 → 중분류 확인
-      const l2Data = getDrillDownData('l2', data.category);
+      const l2Data = getDrillDownData('l2', data.category, currentViewMode);
       console.log('🔍 L2 데이터 확인:', l2Data);
       
       // 부모 컴포넌트에 선택된 대분류 전달
@@ -153,7 +173,7 @@ export function CategoryYoYChart({ monthlyData, ytdData, rawData, selectedMonth,
       }
     } else if (drillLevel === 'l2') {
       // 중분류 클릭 → 소분류 확인
-      const l3Data = getDrillDownData('l3', data.category);
+      const l3Data = getDrillDownData('l3', data.category, currentViewMode);
       console.log('🔍 L3 데이터 확인:', l3Data);
       
       // 소분류가 1개이고, 이름이 중분류와 같으면 계정별로 바로 이동
@@ -188,7 +208,7 @@ export function CategoryYoYChart({ monthlyData, ytdData, rawData, selectedMonth,
       } else {
         // L4 → L3 또는 L2로 복귀
         // 소분류가 1개이고 중분류와 이름이 같았다면 L2로 바로 복귀
-        const l3Data = getDrillDownData('l3', selectedL2);
+        const l3Data = getDrillDownData('l3', selectedL2, currentViewMode);
         if (l3Data.length === 1 && l3Data[0].category === selectedL2) {
           console.log('⏪ L4 → L2 (소분류 스킵)');
           setSelectedL3(null);
@@ -203,7 +223,7 @@ export function CategoryYoYChart({ monthlyData, ytdData, rawData, selectedMonth,
     } else if (drillLevel === 'l3') {
       // L3 → L2 또는 L1로 복귀
       // 중분류가 1개이고 대분류와 이름이 같았다면 L1로 바로 복귀
-      const l2Data = getDrillDownData('l2', selectedL1);
+      const l2Data = getDrillDownData('l2', selectedL1, currentViewMode);
       if (l2Data.length === 1 && l2Data[0].category === selectedL1) {
         console.log('⏪ L3 → L1 (중분류 스킵)');
         setSelectedL3(null);
@@ -234,11 +254,11 @@ export function CategoryYoYChart({ monthlyData, ytdData, rawData, selectedMonth,
         previous: Math.round(item.previous / 1000000),
       }));
     } else if (drillLevel === 'l2') {
-      return getDrillDownData('l2', selectedL1);
+      return getDrillDownData('l2', selectedL1, viewMode);
     } else if (drillLevel === 'l3') {
-      return getDrillDownData('l3', selectedL2);
+      return getDrillDownData('l3', selectedL2, viewMode);
     } else if (drillLevel === 'l4') {
-      return getDrillDownData('l4', selectedL3);
+      return getDrillDownData('l4', selectedL3, viewMode);
     }
     return baseData;
   };
@@ -604,7 +624,7 @@ export function CategoryYoYChart({ monthlyData, ytdData, rawData, selectedMonth,
 
   return (
     <Card className="h-full flex flex-col">
-      <Tabs defaultValue="monthly" className="flex-1 flex flex-col">
+      <Tabs defaultValue="monthly" className="flex-1 flex flex-col" onValueChange={(value) => setCurrentViewMode(value)}>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
