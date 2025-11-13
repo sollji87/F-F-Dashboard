@@ -296,7 +296,7 @@ export function YoYTrendChart({ data, rawCostsData, selectedMonth, title = '월�
   };
   
   // 드릴다운 차트용 커스텀 툴팁 컴포넌트 - 충돌 감지 및 자동 위치 보정
-  const DrillDownTooltip = ({ active, payload, label, category, coordinate, viewBox }) => {
+  const DrillDownTooltip = ({ active, payload, label, category, coordinate, viewBox, subcategoryList }) => {
     if (!active || !payload || payload.length === 0) return null;
 
     const monthLabel = `${label.substring(2, 4)}년 ${label.substring(4, 6)}월`;
@@ -371,20 +371,26 @@ export function YoYTrendChart({ data, rawCostsData, selectedMonth, title = '월�
             <>
               <hr className="my-2 border-zinc-200 dark:border-zinc-600" />
               <p className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 mb-1">소분류별 비용</p>
-              {sortedSubcategories.map(([subcat, amount], index) => (
-                <div key={index} className="flex justify-between items-center gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <div 
-                      className="w-2.5 h-2.5 rounded-sm" 
-                      style={{ backgroundColor: getColorForString(subcat) }}
-                    />
-                    <span className="text-xs text-zinc-700 dark:text-zinc-300">{subcat}</span>
+              {sortedSubcategories.map(([subcat, amount], index) => {
+                // 범례와 동일한 색상 인덱스 사용
+                const colorIndex = subcategoryList ? subcategoryList.indexOf(subcat) : index;
+                const color = PASTEL_COLORS[colorIndex % PASTEL_COLORS.length];
+                
+                return (
+                  <div key={index} className="flex justify-between items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <div 
+                        className="w-2.5 h-2.5 rounded-sm" 
+                        style={{ backgroundColor: color }}
+                      />
+                      <span className="text-xs text-zinc-700 dark:text-zinc-300">{subcat}</span>
+                    </div>
+                    <span className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
+                      {amount.toLocaleString()}
+                    </span>
                   </div>
-                  <span className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
-                    {amount.toLocaleString()}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </>
           )}
         </div>
@@ -592,7 +598,7 @@ export function YoYTrendChart({ data, rawCostsData, selectedMonth, title = '월�
                   domain={[0, 'dataMax + 10']}
                   axisLine={{ stroke: '#d1d5db' }}
                 />
-                <Tooltip content={(props) => <DrillDownTooltip {...props} category={drillDownData.category} />} />
+                <Tooltip content={(props) => <DrillDownTooltip {...props} category={drillDownData.category} subcategoryList={drillDownData.subcategories} />} />
                 <Legend 
                   wrapperStyle={{ fontSize: 11 }}
                   iconType="rect"
